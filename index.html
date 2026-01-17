@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syncfy - Tu Música, Sincronizada</title>
+    <meta name="description" content="Syncfy, el mejor clon de música con estilo premium.">
+    <meta name="theme-color" content="#FFC212">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Icons (Phosphor Icons for a premium look) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <i class="ph-fill ph-spotify-logo"></i>
+                <span class="logo-text">Syncfy</span>
+            </div>
+
+            <nav class="main-nav">
+                <ul>
+                    <li class="active"><a href="#"><i class="ph-fill ph-house"></i> Inicio</a></li>
+                    <li><a href="#"><i class="ph-fill ph-magnifying-glass"></i> Buscar</a></li>
+                    <li><a href="#"><i class="ph-fill ph-books"></i> Tu Biblioteca</a></li>
+                    <li id="navCloud"><a href="#" style="color: var(--accent-color);"><i class="ph-bold ph-cloud"></i>
+                            Tu Nube</a></li>
+                </ul>
+            </nav>
+
+            <div class="playlists-nav">
+                <div class="playlist-header">
+                    <span>PLAYLISTS</span>
+                    <button class="add-playlist" id="addLocalBtn" title="Importar canciones locales"><i
+                            class="ph-bold ph-upload-simple"></i></button>
+                    <input type="file" id="localFileInput" multiple accept="audio/*" style="display: none;">
+                </div>
+                <ul class="playlist-list" id="playlistList">
+                    <li data-type="local" class="active-playlist">Canciones Locales</li>
+                    <li>Mis Favoritos</li>
+                    <li>Éxitos España</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="nav-arrows">
+                    <button class="nav-btn"><i class="ph-bold ph-caret-left"></i></button>
+                    <button class="nav-btn"><i class="ph-bold ph-caret-right"></i></button>
+                </div>
+                <div class="user-menu">
+                    <button class="install-pwa hidden" id="installBtn">Instalar App</button>
+                    <div class="avatar">
+                        <i class="ph-fill ph-user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-scroll">
+                <!-- Hero Section -->
+                <section class="hero-section">
+                    <div class="hero-content">
+                        <h1>Buenos días</h1>
+                        <div class="hero-grid" id="heroGrid">
+                            <!-- Dynamic Content -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sections -->
+                <section class="music-section">
+                    <div class="section-header">
+                        <h2>Hecho para ti</h2>
+                        <a href="#">Ver todo</a>
+                    </div>
+                    <div class="cards-container" id="madeForYou">
+                        <!-- Dynamic Cards -->
+                    </div>
+                </section>
+
+                <section class="music-section">
+                    <div class="section-header">
+                        <h2>Escuchado recientemente</h2>
+                        <a href="#">Ver todo</a>
+                    </div>
+                    <div class="cards-container" id="recentlyPlayed">
+                        <!-- Dynamic Cards -->
+                    </div>
+                </section>
+
+                <div class="spacer" style="height: 100px;"></div>
+            </div>
+        </main>
+
+        <!-- Player Bar -->
+        <footer class="player-bar">
+            <!-- Left: Now Playing -->
+            <div class="now-playing">
+                <div class="track-art" id="currentArt"></div>
+                <div class="track-info">
+                    <div class="track-name-row">
+                        <span class="track-name" id="trackName">Selecciona una canción</span>
+                        <button class="like-btn"><i class="ph-fill ph-check-circle"></i></button>
+                    </div>
+                    <div class="artist-name" id="artistName">Syncfy</div>
+                </div>
+            </div>
+
+            <!-- Center: Controls & Progress -->
+            <div class="player-center">
+                <div class="player-controls">
+                    <div class="control-buttons">
+                        <button class="shuffle"><i class="ph ph-shuffle"></i></button>
+                        <button class="prev"><i class="ph-fill ph-skip-back"></i></button>
+                        <button class="play-pause" id="playPauseBtn"><i class="ph-play-fill"></i></button>
+                        <button class="next"><i class="ph-fill ph-skip-forward"></i></button>
+                        <button class="repeat"><i class="ph ph-repeat"></i></button>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <span class="time current">0:00</span>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <span class="time total">0:00</span>
+                </div>
+            </div>
+
+            <!-- Right: Volume & Extra -->
+            <div class="volume-controls">
+                <button class="extra-btn"><i class="ph ph-microphone-stage"></i></button>
+                <button class="extra-btn"><i class="ph ph-list"></i></button>
+                <button class="extra-btn"><i class="ph ph-speaker-high"></i></button>
+                <div class="volume-wrapper">
+                    <i class="ph-fill ph-speaker-high"></i>
+                    <div class="volume-bar-wrapper">
+                        <div class="volume-bar">
+                            <div class="volume-fill" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <button class="extra-btn"><i class="ph ph-arrows-out-simple"></i></button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- PIN Modal -->
+    <div id="pinModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Acceso a Nube Privada</h2>
+            <p>Introduce tu PIN para acceder a tu música en Drive.</p>
+            <input type="password" id="pinInput" placeholder="PIN Secreto" class="pin-input">
+            <button id="pinSubmitBtn" class="pin-submit-btn">Acceder</button>
+            <p id="pinError" style="color: #ff4d4d; display: none; margin-top: 15px; font-weight: bold;">PIN incorrecto
+                o error de conexión</p>
+            <button id="closeModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
