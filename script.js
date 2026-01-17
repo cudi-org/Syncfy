@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Cloud Functions ---
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzxRNQnL4fH-u8ZJGdYqbPXc_pM-34HnwJ9YJebwWChCO4oKYraPdmDWw_Q5TC_9am-/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyt6qk1lmD11MQAICl900rJrGX59CLMq1l4dWmQVzvwlrypRmjgKxkGpItcmEibhsvu/exec";
 
     async function fetchCloudMusic(pin) {
         try {
@@ -504,7 +504,12 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.crossOrigin = "anonymous";
 
         // 3. Asignamos la URL y cargamos
-        audioPlayer.src = track.src;
+        if (track.isCloud) {
+            const proxyUrl = "https://corsproxy.io/?";
+            audioPlayer.src = proxyUrl + encodeURIComponent(track.src);
+        } else {
+            audioPlayer.src = track.src;
+        }
         audioPlayer.load();
 
         // Update UI
