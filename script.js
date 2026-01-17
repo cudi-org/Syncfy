@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Cloud Functions ---
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxlmv_VOQ6zdeHF9Z-W52gym9BS0T3S1eay82l1m7TG0FbgGFFpY3BMcJy9aut_jhzP/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzxRNQnL4fH-u8ZJGdYqbPXc_pM-34HnwJ9YJebwWChCO4oKYraPdmDWw_Q5TC_9am-/exec";
 
     async function fetchCloudMusic(pin) {
         try {
