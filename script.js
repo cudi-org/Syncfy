@@ -49,7 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentArtEl = document.getElementById('currentArt');
     // --- Init Audio ---
     const audioPlayer = new Audio();
-    // audioPlayer.crossOrigin = "anonymous"; // Removed to avoid CORS lock on Drive files
+    audioPlayer.crossOrigin = "anonymous"; // ESTA LÍNEA ES VITAL
+    audioPlayer.preload = "auto";
 
 
     // Controls DOM
@@ -383,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Cloud Functions ---
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxDmwjjX03RfrHxDvxITx0LUbRhN0wziTNLK0cKM6fSndRT94glEYKoIAlYmwxlveo4/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxmcKzReEcBX7M3qq8bCKD9bbxX5j2-By634uRjMJj_fzz1teFagz5OeDATZMqXBIE/exec";
 
     async function fetchCloudMusic(pin) {
         try {
@@ -490,7 +491,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadTrack(track) {
         if (!track) return;
         state.currentTrack = track;
+
+        // Forzamos el reset del reproductor para evitar errores de caché
+        audioPlayer.pause();
         audioPlayer.src = track.src;
+        audioPlayer.load();
 
         // Update UI
         trackNameEl.innerText = track.title;
