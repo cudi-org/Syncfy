@@ -729,41 +729,182 @@ body {
 }
 
 /* Mobile Responsive */
+/* Mobile Responsive */
+.mobile-nav {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .app-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 80px 60px;
-        /* Space for bottom nav if we added one, here just simplified */
-        grid-template-areas:
-            "main"
-            "player";
+        display: block; /* Remove grid */
+        height: 100vh;
+        position: relative;
     }
 
     .sidebar {
         display: none;
-        /* Hide sidebar on mobile for now */
     }
 
     .main-content {
+        height: 100vh;
         margin: 0;
         border-radius: 0;
+        padding-bottom: 140px; /* Space for player + nav */
+        overflow-y: auto; /* Scroll within main content */
     }
 
+    .top-bar {
+        padding: 12px 16px;
+        background: transparent; /* Cleaner look on mobile */
+    }
+    
+    .nav-arrows { display: none; } /* Hide back/forward arrows on mobile */
+
+    /* Mobile Navigation Bar */
+    .mobile-nav {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.9) 100%);
+        backdrop-filter: blur(10px);
+        z-index: 200;
+        padding-bottom: env(safe-area-inset-bottom); /* iPhone X+ support */
+    }
+
+    .mobile-nav a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: var(--text-subdued);
+        font-size: 10px;
+        gap: 4px;
+        flex: 1;
+    }
+
+    .mobile-nav a i {
+        font-size: 24px;
+        margin-bottom: 2px;
+    }
+
+    .mobile-nav a.active {
+        color: var(--text-base);
+    }
+
+    /* Player Bar - Mini Player Style */
+    .player-bar {
+        position: fixed;
+        bottom: 60px; /* Above nav */
+        left: 8px;
+        right: 8px; /* Floating effect */
+        width: calc(100% - 16px);
+        height: 56px;
+        background-color: #3E3E3E; /* Dark gray like Spotify mini player */
+        border-radius: 6px;
+        padding: 0 8px;
+        grid-template-columns: 1fr auto; /* Track Info | Controls */
+        grid-template-areas: "info controls";
+        border-top: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        z-index: 100;
+        margin-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Left: Info */
     .now-playing {
-        width: 60%;
+        grid-area: info;
+        width: 100%;
+        padding-right: 8px;
+        min-width: 0; /* Allow text truncate */
     }
 
-    .volume-controls {
-        display: none;
+    .track-art {
+        width: 40px;
+        height: 40px;
+        margin-right: 10px;
+        border-radius: 4px;
+    }
+    
+    .track-name { font-size: 13px; }
+    .artist-name { font-size: 11px; }
+
+    /* Right: Controls (Simplified) */
+    .player-center {
+        grid-area: controls;
+        width: auto;
+        margin: 0;
+        flex-direction: row;
     }
 
     .player-controls {
-        width: 40%;
+        width: auto;
+        margin: 0;
     }
 
-    .progress-container {
-        display: none;
+    .control-buttons {
+        gap: 16px;
     }
+
+    .control-buttons button {
+        font-size: 24px; /* Larger icons for touch */
+    }
+
+    /* Hide non-essential mobile controls */
+    .shuffle, .prev, .next, .repeat, .volume-controls, .time.total, .progress-container {
+        display: none !important;
+    }
+    
+    /* Play button specific override for mini player */
+    .play-pause {
+        background: transparent !important; /* No circle background */
+        width: auto !important;
+        height: auto !important;
+    }
+    
+    .play-pause i {
+        color: white !important; /* White icon */
+        font-size: 28px !important;
+    }
+
+    /* Add a tiny progress bar line at bottom of mini player */
+    .player-bar::after {
+        content: ''; /* We'd need JS to update this, so maybe just hide progress for now or stick to simple */
+        /* For true Spotify clone we need the progress bar. 
+           Let's repurpose the existing progress bar if possible, 
+           or just keep it simple without progress line for mvp responsive */
+    }
+    
+    /* Reveal Like button in mini player */
+    .like-btn {
+        display: block;
+        margin-right: 16px; 
+        font-size: 22px;
+    }
+    
+    /* Adjust grid for Hero */
+    .hero-grid {
+        grid-template-columns: 1fr 1fr; /* 2 columns on mobile */
+    }
+    
+    .music-card {
+        min-width: 140px; /* smaller cards */
+    }
+    
+    .cards-container {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+        overflow-x: auto; /* Horizontal scroll for sections */
+        display: flex; /* Flex to allow scroll */
+        padding-bottom: 16px;
+    }
+    
+    /* Hide scrollbar for horizontal sections */
+    .cards-container::-webkit-scrollbar { display: none; }
 }
 
 /* Update: Additional styles for local files list */

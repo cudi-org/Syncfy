@@ -278,12 +278,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.main-nav li:first-child').addEventListener('click', renderHome);
 
     // --- Cloud Logic ---
-    navCloud.addEventListener('click', (e) => {
+    const handleCloudClick = (e) => {
         e.preventDefault();
-        // Visual active state
+        // Visual active state Desktop
         document.querySelectorAll('.main-nav li').forEach(li => li.classList.remove('active'));
-        document.querySelectorAll('.playlist-list li').forEach(el => el.style.color = 'var(--text-subdued)'); // Deactivate playlists
-        navCloud.classList.add('active');
+        document.querySelectorAll('.playlist-list li').forEach(el => el.style.color = 'var(--text-subdued)');
+        if (navCloud) navCloud.classList.add('active');
+
+        // Visual active state Mobile
+        document.querySelectorAll('.mobile-nav a').forEach(a => a.classList.remove('active'));
+        const mobCloud = document.getElementById('mobileNavCloud');
+        if (mobCloud) mobCloud.classList.add('active');
 
         if (state.cloudTracks.length > 0) {
             renderCloudPlaylist();
@@ -291,7 +296,14 @@ document.addEventListener('DOMContentLoaded', () => {
             pinModal.style.display = 'flex';
             pinInput.focus();
         }
-    });
+    };
+
+    navCloud.addEventListener('click', handleCloudClick);
+
+    const mobileNavCloud = document.getElementById('mobileNavCloud');
+    if (mobileNavCloud) {
+        mobileNavCloud.addEventListener('click', handleCloudClick);
+    }
 
     const pinForm = document.getElementById('pinForm');
     pinForm.addEventListener('submit', async (e) => {
@@ -328,6 +340,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Functions ---
 
     function renderHome() {
+        // Visual updates
+        document.querySelectorAll('.main-nav li').forEach(li => li.classList.remove('active'));
+        document.querySelector('.main-nav li:first-child').classList.add('active');
+
+        document.querySelectorAll('.mobile-nav a').forEach(a => a.classList.remove('active'));
+        document.querySelector('.mobile-nav a:first-child').classList.add('active');
+
         // Show Home Sections
         heroSection.style.display = 'block';
         musicSections.forEach(el => el.style.display = 'block');
