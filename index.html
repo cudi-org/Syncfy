@@ -169,8 +169,11 @@
         <div class="modal-content">
             <h2>Acceso a Nube Privada</h2>
             <p>Introduce tu PIN para acceder a tu música en Drive.</p>
-            <input type="password" id="pinInput" placeholder="PIN Secreto" class="pin-input">
-            <button id="pinSubmitBtn" class="pin-submit-btn">Acceder</button>
+            <form id="pinForm">
+                <input type="password" id="pinInput" placeholder="PIN Secreto" class="pin-input"
+                    autocomplete="current-password">
+                <button type="submit" id="pinSubmitBtn" class="pin-submit-btn">Acceder</button>
+            </form>
             <p id="pinError" style="color: #ff4d4d; display: none; margin-top: 15px; font-weight: bold;">PIN incorrecto
                 o error de conexión</p>
             <button id="closeModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>

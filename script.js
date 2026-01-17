@@ -293,7 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    pinSubmitBtn.addEventListener('click', async () => {
+    const pinForm = document.getElementById('pinForm');
+    pinForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         const pin = pinInput.value;
         if (!pin) return;
 
@@ -490,10 +492,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadTrack(track) {
         if (!track) return;
+
         state.currentTrack = track;
 
-        // Forzamos el reset del reproductor para evitar errores de caché
+        // 1. Limpiamos el rastro de intentos anteriores
         audioPlayer.pause();
+        audioPlayer.removeAttribute('src');
+        audioPlayer.load();
+
+        // 2. Configuramos el modo de conexión limpia
+        audioPlayer.crossOrigin = "anonymous";
+
+        // 3. Asignamos la URL y cargamos
         audioPlayer.src = track.src;
         audioPlayer.load();
 
