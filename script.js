@@ -49,8 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentArtEl = document.getElementById('currentArt');
     // --- Init Audio ---
     const audioPlayer = new Audio();
-    audioPlayer.crossOrigin = "anonymous"; // ESTA LÍNEA ES VITAL
     audioPlayer.preload = "auto";
+    audioPlayer.crossOrigin = "anonymous";
 
 
     // Controls DOM
@@ -100,6 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     audioPlayer.addEventListener('timeupdate', updateProgress);
     audioPlayer.addEventListener('ended', handleEnded);
+    audioPlayer.addEventListener('loadedmetadata', () => {
+        const totalS = Math.floor(audioPlayer.duration);
+        const min = Math.floor(totalS / 60);
+        const seg = (totalS % 60).toString().padStart(2, '0');
+        document.querySelector('.time.total').innerText = `${min}:${seg}`;
+    });
 
     // Debugging Audio Errors
     audioPlayer.addEventListener('error', (e) => {
@@ -234,24 +240,63 @@ document.addEventListener('DOMContentLoaded', () => {
     // Import Files
     addLocalBtn.addEventListener('click', () => localFileInput.click());
 
-    localFileInput.addEventListener('change', (e) => {
+    localFileInput.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
-        files.forEach(file => {
-            const track = {
-                id: Date.now() + Math.random(),
-                title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-                artist: "Archivo Local",
-                src: URL.createObjectURL(file), // Blob URL
-                img: "icons/icon-512.png", // Default icon
-                isLocal: true
-            };
-            state.localTracks.push(track);
-        });
+        const processTrack = (file) => {
+            return new Promise((resolve) => {
+                const baseTrack = {
+                    id: Date.now() + Math.random(),
+                    title: file.name.replace(/\.[^/.]+$/, ""), // Fallback title
+                    artist: "Archivo Local",
+                    src: URL.createObjectURL(file),
+                    img: "icons/icon-512.png",
+                    isLocal: true
+                };
+
+                if (window.jsmediatags) {
+                    window.jsmediatags.read(file, {
+                        onSuccess: function (tag) {
+                            const tags = tag.tags;
+                            let imageSrc = baseTrack.img;
+
+                            if (tags.picture) {
+                                try {
+                                    const { data, format } = tags.picture;
+                                    const byteArray = new Uint8Array(data);
+                                    const blob = new Blob([byteArray], { type: format });
+                                    imageSrc = URL.createObjectURL(blob);
+                                } catch (err) {
+                                    console.error("Error procesando imagen local", err);
+                                }
+                            }
+
+                            resolve({
+                                ...baseTrack,
+                                title: tags.title || baseTrack.title,
+                                artist: tags.artist || baseTrack.artist,
+                                img: imageSrc
+                            });
+                        },
+                        onError: function (error) {
+                            console.log("JSMediaTags Error:", error);
+                            resolve(baseTrack);
+                        }
+                    });
+                } else {
+                    resolve(baseTrack);
+                }
+            });
+        };
+
+        // Procesar todos los archivos seleccionados
+        const newTracks = await Promise.all(files.map(processTrack));
+        state.localTracks.push(...newTracks);
 
         // Switch to Local Playlist view immediately
         renderLocalPlaylist();
+
         if (typeof showNotification === 'function') {
             showNotification(`${files.length} canciones añadidas`);
         } else {
@@ -496,13 +541,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Expose playTrack to global scope for HTML onclick
+    // Expose playTrack to global scope for HTML onclick
     window.playTrack = function (index, source) {
+        console.log(`User clicked track ${index} from ${source}`);
+
+        let targetPlaylist = [];
         if (source === 'local') {
-            state.playlist = state.localTracks;
+            targetPlaylist = state.localTracks;
         } else if (source === 'cloud') {
-            state.playlist = state.cloudTracks;
+            targetPlaylist = state.cloudTracks;
         }
 
+        // If clicking the currently playing track, just toggle play/pause
+        if (state.currentTrack && state.currentTrack === targetPlaylist[index]) {
+            togglePlay();
+            return;
+        }
+
+        // Otherwise, load new context and track
+        state.playlist = targetPlaylist;
         state.currentIndex = index;
         loadTrack(state.playlist[index]);
     };
@@ -512,7 +569,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.currentTrack = track;
         audioPlayer.pause();
-        audioPlayer.src = ""; // Resetear source
+        audioPlayer.src = "";
+        audioPlayer.load(); // Esto libera el ancho de banda que estuviera usando la canción vieja
 
 
         if (track.isCloud) {
@@ -529,9 +587,45 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.load();
 
         // Actualización de UI
-        trackNameEl.innerText = track.title;
-        artistNameEl.innerText = track.artist;
+        // Actualización de UI
         currentArtEl.innerHTML = `<img src="${track.img}" style="width: 100%; height: 100%; object-fit: cover;">`;
+
+        const cacheKey = `meta_${track.id}`;
+        const cachedData = localStorage.getItem(cacheKey);
+
+        if (cachedData) {
+            // Si ya la conocemos, actualizamos la interfaz al instante
+            aplicarMetadatos(JSON.parse(cachedData));
+        } else {
+            // Si es nueva, ponemos datos por defecto y empezamos a "leer" el archivo
+            aplicarMetadatos({ title: track.title, artist: "Sincronizando...", album: "Syncfy Cloud" });
+
+            // Leemos los metadatos reales del archivo que ya se está descargando
+            // Solo intentamos leer si es cloud o tiene src válido
+            if (window.jsmediatags) {
+                window.jsmediatags.read(audioPlayer.src, {
+                    onSuccess: function (tag) {
+                        const info = {
+                            title: tag.tags.title || track.title,
+                            artist: tag.tags.artist || "Artista desconocido",
+                            album: tag.tags.album || "Álbum"
+                        };
+                        // Guardamos en la memoria del navegador
+                        localStorage.setItem(cacheKey, JSON.stringify(info));
+                        // Aplicamos los cambios visuales
+                        aplicarMetadatos(info);
+                        console.log("Metadatos guardados para la próxima vez");
+                    },
+                    onError: (error) => {
+                        console.log("No se pudieron leer etiquetas:", error.type, error.info);
+                        // Fallback to initial track data if read fails
+                        aplicarMetadatos({ title: track.title, artist: track.artist });
+                    }
+                });
+            } else {
+                aplicarMetadatos({ title: track.title, artist: track.artist });
+            }
+        }
 
         // Reset state UI
         likeBtn.classList.remove('active'); // Reset like for new song
@@ -545,7 +639,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        playAudio();
+        // Intentamos reproducir inmediatamente. 
+        // El navegador gestionará el buffering automáticamente y la promesa se resolverá cuando empiece a sonar.
+        const playPromise = audioPlayer.play();
+
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    console.log("Reproducción iniciada exitosamente");
+                    state.isPlaying = true;
+                    playIcon.className = 'ph-fill ph-pause';
+                    currentArtEl.classList.add('playing');
+                })
+                .catch(error => {
+                    if (error.name === 'AbortError') {
+                        console.log("Carga interrumpida por nueva solicitud (normal).");
+                    } else {
+                        console.error("Error reproduciendo:", error);
+                        // Si falla (ej. bloqueado por navegador), al menos actualizamos el icono a Play
+                        state.isPlaying = false;
+                        playIcon.className = 'ph-fill ph-play';
+                    }
+                });
+        }
     }
 
     // --- Control Functions ---
@@ -668,6 +784,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function aplicarMetadatos(data) {
+        trackNameEl.innerText = data.title;
+        artistNameEl.innerText = data.artist;
+        // Podríamos actualizar más cosas aquí si fuera necesario
     }
 
     // PWA Install Logic
