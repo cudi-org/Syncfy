@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Cloud Functions ---
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyt6qk1lmD11MQAICl900rJrGX59CLMq1l4dWmQVzvwlrypRmjgKxkGpItcmEibhsvu/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyONs41LRmI-6Co8nqfP8Fb0CRmu3k9wSrep_L5n0ynWsPBOBZZTyVFe6IOxdmbOvzL/exec";
 
     async function fetchCloudMusic(pin) {
         try {
@@ -494,25 +494,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!track) return;
 
         state.currentTrack = track;
-
-        // 1. Limpiamos el rastro de intentos anteriores
         audioPlayer.pause();
-        audioPlayer.removeAttribute('src');
-        audioPlayer.load();
 
-        // 2. Configuramos el modo de conexión limpia
-        audioPlayer.crossOrigin = "anonymous";
-
-        // 3. Asignamos la URL y cargamos
         if (track.isCloud) {
+            // Usamos corsproxy.io que es más permisivo que el de Google
             const proxyUrl = "https://corsproxy.io/?";
             audioPlayer.src = proxyUrl + encodeURIComponent(track.src);
+            audioPlayer.crossOrigin = "anonymous";
         } else {
+            // Archivos locales (Blobs) no necesitan proxy ni CORS
+            audioPlayer.removeAttribute('crossOrigin');
             audioPlayer.src = track.src;
         }
+
         audioPlayer.load();
 
-        // Update UI
+        // Actualización de UI
         trackNameEl.innerText = track.title;
         artistNameEl.innerText = track.artist;
         currentArtEl.innerHTML = `<img src="${track.img}" style="width: 100%; height: 100%; object-fit: cover;">`;
