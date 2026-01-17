@@ -387,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Cloud Functions ---
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyONs41LRmI-6Co8nqfP8Fb0CRmu3k9wSrep_L5n0ynWsPBOBZZTyVFe6IOxdmbOvzL/exec";
+    const PROXY_URL = "https://syncfy.syncfy-api.workers.dev/?id=";
 
     async function fetchCloudMusic(pin) {
         try {
@@ -410,21 +411,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error("Invalid API response format");
             }
 
-            // Map backend data to app state, ensuring 'src' uses the 'url' field from GAS
+            // Map backend data to app state
             const mappedTracks = items.map((item, index) => ({
-                id: item.id || `cloud-${index}`,
-                title: item.title || item.nombre || "Unknown Title", // Title from GAS
-                artist: "Streaming Privado", // No artist in GAS, default value
-                // Use docs.google.com for better direct stream handling (less 403 issues)
-                src: (item.url || "").replace("drive.google.com", "docs.google.com"),
+                id: item.id, // Google Drive ID needed for the worker
+                title: item.title || item.nombre || "Unknown Title",
+                artist: "Streaming Privado",
+                src: item.url, // Keep original URL as backup/reference
                 img: "https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png",
                 isCloud: true,
-                // Store extra metadata from GAS
                 fileName: item.nombre,
                 mimeType: item.tipo
             }));
 
-            console.log("Mapped Cloud Tracks:", mappedTracks); // Debug: Check if src is present
             return mappedTracks;
 
         } catch (e) {
@@ -497,9 +495,9 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.pause();
 
         if (track.isCloud) {
-            // Usamos corsproxy.io que es más permisivo que el de Google
-            const proxyUrl = "https://corsproxy.io/?";
-            audioPlayer.src = proxyUrl + encodeURIComponent(track.src);
+            // New Worker Proxy logic
+            audioPlayer.src = PROXY_URL + track.id;
+            // The worker handles CORS, but setting anonymous is safe
             audioPlayer.crossOrigin = "anonymous";
         } else {
             // Archivos locales (Blobs) no necesitan proxy ni CORS
