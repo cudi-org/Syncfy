@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playPauseBtn = document.getElementById('playPauseBtn');
     const playIcon = playPauseBtn.querySelector('i');
     // Ensure initial class is correct for new style
-    playIcon.className = 'ph-play-fill';
+    playIcon.className = 'ph-fill ph-play';
 
     const progressFill = document.querySelector('.progress-fill');
     const trackNameEl = document.getElementById('trackName');
@@ -493,6 +493,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.currentTrack = track;
         audioPlayer.pause();
+        audioPlayer.src = ""; // Resetear source
+
 
         if (track.isCloud) {
             // New Worker Proxy logic
@@ -540,19 +542,30 @@ document.addEventListener('DOMContentLoaded', () => {
         else playAudio();
     }
 
-    function playAudio() {
+    async function playAudio() {
         if (!audioPlayer.src) return;
-        audioPlayer.play().then(() => {
-            state.isPlaying = true;
-            playIcon.className = 'ph-pause-fill'; // Explicitly set the pause icon
-            currentArtEl.classList.add('playing'); // Spin animation
-        }).catch(err => console.error("Error playing:", err));
+
+        try {
+            const playPromise = audioPlayer.play();
+            if (playPromise !== undefined) {
+                await playPromise;
+                state.isPlaying = true;
+                playIcon.className = 'ph-fill ph-pause';
+                currentArtEl.classList.add('playing');
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log("Reproducción interrumpida (normal al cambiar rápido de canción)");
+            } else {
+                console.error("Error real al reproducir:", error);
+            }
+        }
     }
 
     function pauseAudio() {
         audioPlayer.pause();
         state.isPlaying = false;
-        playIcon.className = 'ph-play-fill'; // Explicitly set the play icon
+        playIcon.className = 'ph-fill ph-play'; // Explicitly set the play icon
         currentArtEl.classList.remove('playing');
     }
 
