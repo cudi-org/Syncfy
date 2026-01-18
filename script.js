@@ -470,6 +470,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTrackList(tracks, container, source, playlistId = null) {
         container.innerHTML = `
+            <div class="action-header" style="display: flex; gap: 16px; align-items: center; padding: 24px 16px;">
+                <button class="pin-submit-btn" onclick="playContext('${source}', '${playlistId || ''}')" style="width: auto; padding: 12px 32px; display: flex; align-items: center; gap: 8px;">
+                     <i class="ph-fill ph-play" style="color: #000; font-size: 20px;"></i>
+                     Reproducir
+                </button>
+                <button class="icon-btn" onclick="toggleShuffleContext('${source}', '${playlistId || ''}')" style="background: transparent; border: 1px solid #555; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: ${state.isShuffle ? '#1DB954' : '#fff'}; transition: all 0.2s;">
+                    <i class="ph-bold ph-shuffle" style="font-size: 24px;"></i>
+                </button>
+            </div>
+
             <div class="track-list-header" style="display: grid; grid-template-columns: 40px 1fr 1fr 40px; padding: 0 16px 12px; border-bottom: 1px solid #282828; color: var(--text-subdued); font-size: 14px;">
                 <span>#</span>
                 <span>Título</span>
@@ -531,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: item.title || item.nombre || "Unknown Title",
                 artist: "Streaming Privado",
                 src: item.url, // Keep original URL as backup/reference
-                img: "https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png",
+                img: "icons/icon-512.png",
                 isCloud: true,
                 fileName: item.nombre,
                 mimeType: item.tipo
@@ -545,49 +555,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderCloudPlaylist() {
-        // Hide Home Sections
-        heroSection.style.display = 'none';
-        musicSections.forEach(el => el.style.display = 'none');
+    // Expose Play Context
+    window.playContext = function (source, playlistId) {
+        state.isShuffle = false;
+        playTrack(0, source, playlistId);
+        updateShuffleStateUI();
+    };
 
-        let listContainer = document.getElementById('localLinksList');
-        if (!listContainer) {
-            listContainer = document.createElement('div');
-            listContainer.id = 'localLinksList';
-            listContainer.className = 'local-files-container';
-            mainContent.appendChild(listContainer);
-        }
+    window.toggleShuffleContext = function (source, playlistId) {
+        toggleShuffle(); // Toggles state.isShuffle
+        updateShuffleStateUI();
 
-        listContainer.innerHTML = `
-            <div class="track-list-header" style="display: grid; grid-template-columns: 50px 1fr 1fr 100px; padding: 0 16px 12px; border-bottom: 1px solid #282828; color: var(--text-subdued); font-size: 14px;">
-                <span>#</span>
-                <span>Título</span>
-                <span>Formato</span>
-                <span><i class="ph-clock"></i></span>
-            </div>
-            <div class="tracks-wrapper">
-                ${state.cloudTracks.map((track, index) => {
-            // Extract format from mimeType (e.g., "audio/mpeg" -> "MPEG", "audio/wav" -> "WAV")
-            let format = "AUDIO";
-            if (track.mimeType) {
-                if (track.mimeType.includes("mpeg")) format = "MP3";
-                else if (track.mimeType.includes("wav")) format = "WAV";
-                else if (track.mimeType.includes("ogg")) format = "OGG";
+        // If not playing, or playing different context, start playing with new shuffle state
+        // Re-using logic from playTrack(0) roughly, but playNext random
+        if (!state.isPlaying) {
+            playTrack(0, source, playlistId);
+            // Note: playTrack uses index, then loadTrack. 
+            // If shuffle is ON, next track logic applies later. 
+            // To start *randomly* immediately, we'd need playNext logic here.
+            // But simpler: just start playing index 0, and next will be random.
+            // OR: pick random index:
+            if (state.isShuffle) {
+                let list = [];
+                if (source === 'library') list = [...state.localTracks, ...state.cloudTracks];
+                else if (source === 'playlist') list = state.playlists.find(p => p.id == playlistId).tracks;
+
+                if (list.length > 0) {
+                    const randIndex = Math.floor(Math.random() * list.length);
+                    playTrack(randIndex, source, playlistId);
+                }
             }
+        }
+    };
 
-            return `
-                    <div class="track-item" onclick="playTrack(${index}, 'cloud')" style="display: grid; grid-template-columns: 50px 1fr 1fr 100px; padding: 12px 16px; border-radius: 4px; cursor: pointer; align-items: center; transition: background 0.2s;">
-                        <span style="color: var(--text-subdued);">${index + 1}</span>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <i class="ph-fill ph-cloud-check" style="color: var(--accent-color); font-size: 24px;"></i>
-                            <span style="color: ${state.currentTrack === track ? 'var(--accent-color)' : 'var(--text-base)'}; font-weight: 500;">${track.title}</span>
-                        </div>
-                        <span style="color: var(--text-subdued); text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">${format}</span>
-                        <span style="color: var(--text-subdued);">--:--</span>
-                    </div>
-                `}).join('')}
-            </div>
-        `;
+    function updateShuffleStateUI() {
+        const btns = document.querySelectorAll('.action-header .icon-btn');
+        btns.forEach(btn => {
+            btn.style.color = state.isShuffle ? '#1DB954' : '#fff';
+            btn.style.borderColor = state.isShuffle ? '#1DB954' : '#555';
+        });
+        // Also update main player bar
+        shuffleBtn.classList.toggle('active', state.isShuffle);
+        const fpShuffle = document.getElementById('fpShuffle');
+        if (fpShuffle) fpShuffle.classList.toggle('active', state.isShuffle);
     }
 
     // Expose playTrack to global scope for HTML onclick
