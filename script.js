@@ -22,9 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isShuffle: false,
         isRepeat: false,
         currentTrack: null,
-        playlist: [], // Currently playing queue
-        localTracks: [], // Tracks imported by user
-        cloudTracks: [], // Tracks from Drive
+        playlist: [], // Currently playing queue (context)
+        queue: [], // User added manual queue
+        localTracks: [],
+        cloudTracks: [],
+        playlists: [], // Array of {id, name, tracks: []}
         currentIndex: 0,
         volume: 0.7
     };
@@ -312,7 +314,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.style.color = 'var(--text-base)';
 
             if (e.target.innerText.includes('Canciones Locales')) {
-                renderLocalPlaylist();
+                // Deprecated: Now we use Library
+                renderLibrary();
+            } else if (e.target.dataset.playlistId) {
+                renderPlaylist(e.target.dataset.playlistId);
             } else {
                 // Return to home/default view
                 renderHome();
@@ -364,7 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tracks && tracks.length > 0) {
                 state.cloudTracks = tracks;
                 pinModal.style.display = 'none';
-                renderCloudPlaylist();
+
+                // Refresh Library view if active, else might stay on home
+                renderLibrary();
                 console.log("Conectado a la Nube");
             } else {
                 throw new Error("No tracks found or invalid PIN");
@@ -401,12 +408,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (existingList) existingList.remove();
     }
 
-    function renderLocalPlaylist() {
+    // --- Unified Library Logic ---
+    function renderLibrary() {
         // Hide Home Sections
         heroSection.style.display = 'none';
         musicSections.forEach(el => el.style.display = 'none');
 
-        // Check if list container exists
         let listContainer = document.getElementById('localLinksList');
         if (!listContainer) {
             listContainer = document.createElement('div');
@@ -415,39 +422,82 @@ document.addEventListener('DOMContentLoaded', () => {
             mainContent.appendChild(listContainer);
         }
 
-        if (state.localTracks.length === 0) {
+        // Combine tracks
+        const allTracks = [...state.localTracks, ...state.cloudTracks];
+
+        if (allTracks.length === 0) {
             listContainer.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--text-subdued);">
                     <i class="ph-music-notes" style="font-size: 48px; margin-bottom: 20px; display: block;"></i>
-                    <h2 style="color: var(--text-base); margin-bottom: 10px;">Tu biblioteca local está vacía</h2>
-                    <p>Haz clic en el icono <i class="ph-upload-simple"></i> arriba para añadir canciones.</p>
+                    <h2 style="color: var(--text-base); margin-bottom: 10px;">Tu biblioteca está vacía</h2>
+                    <p>Importa canciones locales o conéctate a la nube.</p>
                 </div>
             `;
             return;
         }
 
-        listContainer.innerHTML = `
-            <div class="track-list-header" style="display: grid; grid-template-columns: 50px 1fr 1fr 100px; padding: 0 16px 12px; border-bottom: 1px solid #282828; color: var(--text-subdued); font-size: 14px;">
+        renderTrackList(allTracks, listContainer, 'library');
+    }
+
+    function renderPlaylist(playlistId) {
+        // Hide Home Sections
+        heroSection.style.display = 'none';
+        musicSections.forEach(el => el.style.display = 'none');
+
+        let listContainer = document.getElementById('localLinksList');
+        if (!listContainer) {
+            listContainer = document.createElement('div');
+            listContainer.id = 'localLinksList';
+            listContainer.className = 'local-files-container';
+            mainContent.appendChild(listContainer);
+        }
+
+        const playlist = state.playlists.find(p => p.id == playlistId);
+        if (!playlist) return;
+
+        if (playlist.tracks.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--text-subdued);">
+                    <h2 style="color: var(--text-base); margin-bottom: 10px;">Playlist vacía</h2>
+                    <p>Añade canciones desde el menú de opciones (...)</p>
+                </div>
+            `;
+            return;
+        }
+
+        renderTrackList(playlist.tracks, listContainer, 'playlist', playlistId);
+    }
+
+    function renderTrackList(tracks, container, source, playlistId = null) {
+        container.innerHTML = `
+            <div class="track-list-header" style="display: grid; grid-template-columns: 40px 1fr 1fr 40px; padding: 0 16px 12px; border-bottom: 1px solid #282828; color: var(--text-subdued); font-size: 14px;">
                 <span>#</span>
                 <span>Título</span>
                 <span>Artista</span>
-                <span><i class="ph-clock"></i></span>
+                <span></span>
             </div>
             <div class="tracks-wrapper">
-                ${state.localTracks.map((track, index) => `
-                    <div class="track-item" onclick="playTrack(${index}, 'local')" style="display: grid; grid-template-columns: 50px 1fr 1fr 100px; padding: 12px 16px; border-radius: 4px; cursor: pointer; align-items: center; transition: background 0.2s;">
+                ${tracks.map((track, index) => `
+                    <div class="track-item" onclick="playTrack(${index}, '${source}', '${playlistId || ''}')" style="display: grid; grid-template-columns: 40px 1fr 1fr 40px; padding: 12px 16px; border-radius: 4px; cursor: pointer; align-items: center; transition: background 0.2s;">
                         <span style="color: var(--text-subdued);">${index + 1}</span>
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <img src="${track.img}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                            <span style="color: ${state.currentTrack === track ? 'var(--accent-color)' : 'var(--text-base)'}; font-weight: 500;">${track.title}</span>
+                            <div style="overflow: hidden;">
+                                <span style="display:block; color: ${state.currentTrack === track ? 'var(--accent-color)' : 'var(--text-base)'}; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${track.title}</span>
+                            </div>
                         </div>
-                        <span style="color: var(--text-subdued);">${track.artist}</span>
-                        <span style="color: var(--text-subdued);">--:--</span>
+                        <span style="color: var(--text-subdued); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${track.artist}</span>
+                        <button class="extra-btn" onclick="openContextMenu(event, ${index}, '${source}', '${playlistId || ''}')" style="font-size: 20px;"><i class="ph-bold ph-dots-three"></i></button>
                     </div>
                 `).join('')}
             </div>
         `;
     }
+
+    // Deprecating separated renderLocalPlaylist and CloudPlaylist in favor of Unified Library
+    // But keeping empty functions if called elsewhere or removing them if possible. 
+    function renderLocalPlaylist() { renderLibrary(); }
+    function renderCloudPlaylist() { renderLibrary(); }
 
     // --- Cloud Functions ---
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyONs41LRmI-6Co8nqfP8Fb0CRmu3k9wSrep_L5n0ynWsPBOBZZTyVFe6IOxdmbOvzL/exec";
@@ -542,11 +592,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Expose playTrack to global scope for HTML onclick
     // Expose playTrack to global scope for HTML onclick
-    window.playTrack = function (index, source) {
+    // Expose playTrack to global scope for HTML onclick
+    window.playTrack = function (index, source, playlistId = null) {
         console.log(`User clicked track ${index} from ${source}`);
+        if (event.target.closest('.extra-btn')) return; // Prevent click if clicking the dots
 
         let targetPlaylist = [];
-        if (source === 'local') {
+        if (source === 'library') {
+            targetPlaylist = [...state.localTracks, ...state.cloudTracks];
+        } else if (source === 'playlist' && playlistId) {
+            const pl = state.playlists.find(p => p.id == playlistId);
+            if (pl) targetPlaylist = pl.tracks;
+        } else if (source === 'local') {
             targetPlaylist = state.localTracks;
         } else if (source === 'cloud') {
             targetPlaylist = state.cloudTracks;
@@ -563,6 +620,139 @@ document.addEventListener('DOMContentLoaded', () => {
         state.currentIndex = index;
         loadTrack(state.playlist[index]);
     };
+
+    // --- Context Menu Logic ---
+    let ctxTrack = null;
+    const contextMenu = document.getElementById('contextMenu');
+
+    window.openContextMenu = function (e, index, source, playlistId) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Find track
+        let list = [];
+        if (source === 'library') list = [...state.localTracks, ...state.cloudTracks];
+        else if (source === 'playlist') list = state.playlists.find(p => p.id == playlistId).tracks;
+
+        ctxTrack = list[index];
+
+        // Position menu
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${e.pageX - 160}px`;
+        contextMenu.style.top = `${e.pageY}px`;
+
+        // Close on outside click
+        document.addEventListener('click', closeContextMenu, { once: true });
+    };
+
+    function closeContextMenu() {
+        contextMenu.style.display = 'none';
+        ctxTrack = null;
+    }
+
+    document.getElementById('ctxQueue').addEventListener('click', () => {
+        if (ctxTrack) {
+            state.queue.push(ctxTrack);
+            console.log("Added to queue", ctxTrack.title);
+            // Optionally show toast
+        }
+    });
+
+    // --- Playlist Creation Logic ---
+    const playlistModal = document.getElementById('playlistModal');
+    const createPlaylistConfirmBtn = document.getElementById('createPlaylistConfirmBtn');
+    const newPlaylistName = document.getElementById('newPlaylistName');
+    const closePlaylistModalBtn = document.getElementById('closePlaylistModalBtn');
+
+    // Wire up "New Playlist" button (assuming one exists or reused addLocalBtn logic if needed)
+    // IMPORTANT: Check if we have a button for creating playlists specifically. 
+    // The user has a sidebar section for playlists. Let's make the "+" button generic or add a new one. 
+    // Reusing the header button .add-playlist for Importing, maybe add a new UI element? 
+    // For now, let's assume we add a "Crear Playlist" text button at bottom of sidebar or use context menu there.
+
+    // Let's attach to the 'add-playlist' button but ask user: Local Files or New Playlist?
+    // or simplicity: Just create a function exposed globally
+    window.openCreatePlaylistModal = function () {
+        playlistModal.style.display = 'flex';
+        newPlaylistName.focus();
+    };
+
+    createPlaylistConfirmBtn.addEventListener('click', () => {
+        const name = newPlaylistName.value.trim();
+        if (name) {
+            const newPl = { id: Date.now(), name: name, tracks: [] };
+            state.playlists.push(newPl);
+            renderSidebarPlaylists();
+            playlistModal.style.display = 'none';
+            newPlaylistName.value = "";
+        }
+    });
+
+    closePlaylistModalBtn.addEventListener('click', () => playlistModal.style.display = 'none');
+
+    function renderSidebarPlaylists() {
+        const container = document.getElementById('playlistList');
+        // Keep static items (Local, Favs...) and append dynamic ones.
+        // Actually, simpler to just rebuild.
+        // Let's keep "Canciones Locales" as hardcoded in HTML, and append dynamic LI elements.
+
+        // Remove old dynamic ones
+        const oldDynamic = container.querySelectorAll('.dynamic-pl');
+        oldDynamic.forEach(el => el.remove());
+
+        state.playlists.forEach(pl => {
+            const li = document.createElement('li');
+            li.className = 'dynamic-pl';
+            li.innerText = pl.name;
+            li.dataset.playlistId = pl.id;
+            container.appendChild(li);
+        });
+    }
+
+    // Add to Playlist Modal
+    const addToPlaylistModal = document.getElementById('addToPlaylistModal');
+    const addToPlaylistList = document.getElementById('addToPlaylistList');
+    const closeAddToPlaylistModalBtn = document.getElementById('closeAddToPlaylistModalBtn');
+
+    document.getElementById('ctxAddToPlaylist').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!ctxTrack) return;
+
+        addToPlaylistList.innerHTML = '';
+        state.playlists.forEach(pl => {
+            const li = document.createElement('li');
+            li.innerHTML = `<i class="ph-bold ph-music-notes-simple"></i> ${pl.name}`;
+            li.onclick = () => {
+                pl.tracks.push(ctxTrack);
+                addToPlaylistModal.style.display = 'none';
+                console.log(`Added ${ctxTrack.title} to ${pl.name}`);
+            };
+            addToPlaylistList.appendChild(li);
+        });
+
+        addToPlaylistModal.style.display = 'flex';
+    });
+
+    closeAddToPlaylistModalBtn.addEventListener('click', () => addToPlaylistModal.style.display = 'none');
+
+
+    // Update Library Link click handler
+    document.querySelector('.main-nav li:nth-child(3) a').addEventListener('click', (e) => {
+        e.preventDefault();
+        // Update styling
+        document.querySelectorAll('.main-nav li').forEach(li => li.classList.remove('active'));
+        e.target.closest('li').classList.add('active');
+        renderLibrary();
+    });
+
+    // Add logic to mobile library button too
+    const mobLib = document.querySelector('.mobile-nav a:nth-child(3)');
+    if (mobLib) {
+        mobLib.addEventListener('click', (e) => {
+            e.preventDefault();
+            renderLibrary();
+        });
+    }
 
     function loadTrack(track) {
         if (!track) return;
@@ -720,6 +910,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playNext() {
+        // Priority: Queue
+        if (state.queue.length > 0) {
+            const nextTrack = state.queue.shift();
+            // We set playlist index to -1 or handle distinct state, 
+            // but for simplicity, we just load it. 
+            // Warning: Pre/Next buttons might act weird if not in playlist context.
+            // Ideally we insert it into current playlist? Or just play it.
+            loadTrack(nextTrack);
+            return;
+        }
+
         if (state.playlist.length === 0) return;
 
         if (state.isShuffle) {
@@ -843,4 +1044,105 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(() => console.log('Service Worker Registered'))
             .catch((err) => console.log('SW Failed', err));
     }
+    // --- Full Player Logic (Mobile) ---
+    const fullPlayer = document.getElementById('fullPlayer');
+    const closeFullPlayerBtn = document.getElementById('closeFullPlayer');
+    const playerBar = document.querySelector('.player-bar');
+
+    // Open Full Player on Mini Player Click (Mobile Only)
+    playerBar.addEventListener('click', (e) => {
+        // Prevent opening if clicking play/pause directly on mini player
+        if (e.target.closest('.play-pause') || e.target.closest('.like-btn')) return;
+
+        // Check if we are in mobile view (simplified check)
+        if (window.innerWidth <= 768) {
+            fullPlayer.classList.add('active');
+            updateFullPlayerUI();
+        }
+    });
+
+    closeFullPlayerBtn.addEventListener('click', () => {
+        fullPlayer.classList.remove('active');
+    });
+
+    // Full Player Controls
+    const fpPlayPause = document.getElementById('fpPlayPause');
+    const fpPrev = document.getElementById('fpPrev');
+    const fpNext = document.getElementById('fpNext');
+    const fpShuffle = document.getElementById('fpShuffle');
+    const fpRepeat = document.getElementById('fpRepeat');
+
+    fpPlayPause.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlay();
+    });
+    fpPrev.addEventListener('click', playPrev);
+    fpNext.addEventListener('click', playNext);
+    fpShuffle.addEventListener('click', toggleShuffle);
+    fpRepeat.addEventListener('click', toggleRepeat);
+
+    // Sync Full Player UI with Main State
+    function updateFullPlayerUI() {
+        if (!state.currentTrack) return;
+
+        // Text Info
+        document.getElementById('fpTitle').innerText = state.currentTrack.title;
+        document.getElementById('fpArtist').innerText = state.currentTrack.artist || 'Desconocido';
+        document.getElementById('fpContext').innerText = state.currentTrack.isLocal ? 'Archivos Locales' : 'Tu Nube';
+
+        // Art
+        const artUrl = state.currentTrack.img || 'icons/icon-512.png';
+        document.getElementById('fpArt').src = artUrl;
+
+        // Play/Pause Icon
+        const icon = fpPlayPause.querySelector('i');
+        icon.className = state.isPlaying ? 'ph-fill ph-pause' : 'ph-fill ph-play';
+
+        // Toggles
+        fpShuffle.classList.toggle('active', state.isShuffle);
+        fpRepeat.classList.toggle('active', state.isRepeat);
+
+        // Like (Mock)
+        document.getElementById('fpLikeBtn').classList.toggle('active', likeBtn.classList.contains('active'));
+    }
+
+    // Hook into existing updates
+    // We modify existing functions to also call updateFullPlayerUI()
+    // A clean way is to observe state changes or just append calls.
+    // Since we can't easily refactor everything, we'll augment specific points.
+
+    // 1. Hook into loadTrack updates
+    const originalLoadTrack = loadTrack;
+    // We can't redefine local function easily without refactor. 
+    // Instead we rely on the fact that existing functions modify DOM.
+    // We'll add a MutationObserver to the mini-player track name to trigger updates.
+
+    const observer = new MutationObserver(() => {
+        updateFullPlayerUI();
+    });
+    observer.observe(document.getElementById('trackName'), { childList: true, subtree: true, characterData: true });
+
+    // 2. Hook into Time Update for Progress Bar
+    audioPlayer.addEventListener('timeupdate', () => {
+        if (!fullPlayer.classList.contains('active')) return;
+
+        const current = audioPlayer.currentTime;
+        const duration = audioPlayer.duration || 1;
+        const percent = (current / duration) * 100;
+
+        document.getElementById('fpProgressFill').style.width = `${percent}%`;
+        document.getElementById('fpCurrentTime').innerText = formatTime(current);
+        document.getElementById('fpTotalTime').innerText = formatTime(duration);
+    });
+
+    // 3. Hook into Play/Pause Toggle for Icon
+    audioPlayer.addEventListener('play', () => {
+        const icon = fpPlayPause.querySelector('i');
+        icon.className = 'ph-fill ph-pause';
+    });
+    audioPlayer.addEventListener('pause', () => {
+        const icon = fpPlayPause.querySelector('i');
+        icon.className = 'ph-fill ph-play';
+    });
+
 });

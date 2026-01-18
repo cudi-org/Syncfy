@@ -49,8 +49,12 @@
             <div class="playlists-nav">
                 <div class="playlist-header">
                     <span>PLAYLISTS</span>
-                    <button class="add-playlist" id="addLocalBtn" title="Importar canciones locales"><i
-                            class="ph-bold ph-upload-simple"></i></button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="add-playlist" onclick="openCreatePlaylistModal()" title="Crear Playlist Nueva"><i
+                                class="ph-bold ph-plus"></i></button>
+                        <button class="add-playlist" id="addLocalBtn" title="Importar canciones locales"><i
+                                class="ph-bold ph-upload-simple"></i></button>
+                    </div>
                     <input type="file" id="localFileInput" multiple accept="audio/*" style="display: none;">
                 </div>
                 <ul class="playlist-list" id="playlistList">
@@ -188,6 +192,55 @@
         </nav>
     </div>
 
+    <!-- Full Screen Player Overlay (Mobile) -->
+    <div id="fullPlayer" class="full-player-overlay">
+        <div class="full-player-header">
+            <button class="icon-btn" id="closeFullPlayer"><i class="ph ph-caret-down"></i></button>
+            <div class="header-text">
+                <span class="subtext">REPRODUCIENDO DESDE</span>
+                <span class="context-text" id="fpContext">Tu Biblioteca</span>
+            </div>
+            <button class="icon-btn"><i class="ph ph-dots-three-vertical"></i></button>
+        </div>
+
+        <div class="full-player-art">
+            <img id="fpArt" src="icons/icon-512.png" alt="Album Art">
+        </div>
+
+        <div class="full-player-info">
+            <div class="info-text">
+                <h3 id="fpTitle">Canción</h3>
+                <p id="fpArtist">Artista</p>
+            </div>
+            <button class="like-btn" id="fpLikeBtn"><i class="ph-fill ph-heart"></i></button>
+        </div>
+
+        <div class="full-player-progress">
+            <div class="progress-bar-wrapper" id="fpProgressWrapper">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="fpProgressFill"></div>
+                </div>
+            </div>
+            <div class="time-row">
+                <span class="time" id="fpCurrentTime">0:00</span>
+                <span class="time" id="fpTotalTime">0:00</span>
+            </div>
+        </div>
+
+        <div class="full-player-controls">
+            <button class="control-btn shuffle" id="fpShuffle"><i class="ph ph-shuffle"></i></button>
+            <button class="control-btn prev" id="fpPrev"><i class="ph-fill ph-skip-back"></i></button>
+            <button class="play-pause-btn" id="fpPlayPause"><i class="ph-fill ph-play"></i></button>
+            <button class="control-btn next" id="fpNext"><i class="ph-fill ph-skip-forward"></i></button>
+            <button class="control-btn repeat" id="fpRepeat"><i class="ph ph-repeat"></i></button>
+        </div>
+
+        <div class="full-player-bottom">
+            <button class="icon-btn"><i class="ph ph-speaker-high"></i></button>
+            <button class="icon-btn"><i class="ph ph-list"></i></button>
+        </div>
+    </div>
+
     <!-- PIN Modal -->
     <div id="pinModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
@@ -202,6 +255,35 @@
             <p id="pinError" style="color: #ff4d4d; display: none; margin-top: 15px; font-weight: bold;">PIN incorrecto
                 o error de conexión</p>
             <button id="closeModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <button id="ctxQueue">Añadir a la cola</button>
+        <div class="ctx-divider"></div>
+        <button id="ctxAddToPlaylist">Añadir a playlist...</button>
+        <!-- Submenu for playlists could be rendered dynamically or handled via a secondary modal -->
+    </div>
+
+    <!-- Create Playlist Modal -->
+    <div id="playlistModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Crear Playlist</h2>
+            <input type="text" id="newPlaylistName" class="pin-input" placeholder="Nombre de la playlist">
+            <button id="createPlaylistConfirmBtn" class="pin-submit-btn">Crear</button>
+            <button id="closePlaylistModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>
+        </div>
+    </div>
+
+    <!-- Add To Playlist Modal (Selector) -->
+    <div id="addToPlaylistModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Añadir a Playlist</h2>
+            <ul id="addToPlaylistList" class="modal-list">
+                <!-- Dynamic List -->
+            </ul>
+            <button id="closeAddToPlaylistModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>
         </div>
     </div>
 
