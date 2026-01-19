@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localTracks: [],
         cloudTracks: [],
         playlists: [], // Array of {id, name, tracks: []}
+        searchResults: [],
         currentIndex: 0,
         volume: 0.7
     };
@@ -326,6 +327,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelector('.main-nav li:first-child').addEventListener('click', renderHome);
+    document.querySelector('.main-nav li:nth-child(2)').addEventListener('click', (e) => { e.preventDefault(); renderSearch(); });
+    document.querySelector('.mobile-nav a:nth-child(2)').addEventListener('click', (e) => { e.preventDefault(); renderSearch(); });
 
     // --- Cloud Logic ---
     const handleCloudClick = (e) => {
@@ -406,6 +409,85 @@ document.addEventListener('DOMContentLoaded', () => {
         // Remove existing list view if any
         const existingList = document.getElementById('localLinksList');
         if (existingList) existingList.remove();
+        const searchContainer = document.getElementById('searchContainer');
+        if (searchContainer) searchContainer.remove();
+    }
+
+    // --- Unified Library Logic ---
+    function renderSearch() {
+        // Hide Home Sections
+        heroSection.style.display = 'none';
+        musicSections.forEach(el => el.style.display = 'none');
+
+        // Visual updates
+        document.querySelectorAll('.main-nav li').forEach(li => li.classList.remove('active'));
+        document.querySelector('.main-nav li:nth-child(2)').classList.add('active');
+
+        document.querySelectorAll('.mobile-nav a').forEach(a => a.classList.remove('active'));
+        if (document.querySelector('.mobile-nav a:nth-child(2)')) {
+            document.querySelector('.mobile-nav a:nth-child(2)').classList.add('active');
+        }
+
+        // Cleanup other views
+        const existingList = document.getElementById('localLinksList');
+        if (existingList) existingList.remove();
+
+        let searchContainer = document.getElementById('searchContainer');
+        if (!searchContainer) {
+            searchContainer = document.createElement('div');
+            searchContainer.id = 'searchContainer';
+            searchContainer.className = 'search-container';
+            mainContent.appendChild(searchContainer);
+        }
+
+        searchContainer.innerHTML = `
+            <div class="search-header-container" style="padding: 24px 32px;">
+                <div class="search-input-wrapper" style="position: relative; max-width: 400px;">
+                     <i class="ph-bold ph-magnifying-glass" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #000;"></i>
+                     <input type="text" id="searchInput" placeholder="¿Qué quieres escuchar?" 
+                     style="width: 100%; padding: 14px 14px 14px 48px; border-radius: 24px; border: none; outline: none; font-size: 16px; font-weight: 500; color: #000;">
+                </div>
+            </div>
+            <div id="searchResults" class="local-files-container">
+                <div style="text-align: center; padding: 40px; color: var(--text-subdued);">
+                    <i class="ph-magnifying-glass" style="font-size: 48px; margin-bottom: 20px; display: block;"></i>
+                    <p>Busca canciones, artistas o podcasts.</p>
+                </div>
+            </div>
+        `;
+
+        const input = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('searchResults');
+        input.focus();
+
+        input.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                resultsContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-subdued);">
+                        <i class="ph-magnifying-glass" style="font-size: 48px; margin-bottom: 20px; display: block;"></i>
+                        <p>Busca canciones, artistas o podcasts.</p>
+                    </div>`;
+                return;
+            }
+
+            const allTracks = [...state.localTracks, ...state.cloudTracks];
+            const results = allTracks.filter(track =>
+                (track.title && track.title.toLowerCase().includes(query)) ||
+                (track.artist && track.artist.toLowerCase().includes(query))
+            );
+
+            state.searchResults = results;
+
+            if (results.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-subdued);">
+                        <p>No se encontraron resultados para "${e.target.value}"</p>
+                    </div>`;
+            } else {
+                renderTrackList(results, resultsContainer, 'search');
+            }
+        });
     }
 
     // --- Unified Library Logic ---
@@ -413,6 +495,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide Home Sections
         heroSection.style.display = 'none';
         musicSections.forEach(el => el.style.display = 'none');
+
+        const searchContainer = document.getElementById('searchContainer');
+        if (searchContainer) searchContainer.remove();
 
         let listContainer = document.getElementById('localLinksList');
         if (!listContainer) {
@@ -579,6 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let list = [];
                 if (source === 'library') list = [...state.localTracks, ...state.cloudTracks];
                 else if (source === 'playlist') list = state.playlists.find(p => p.id == playlistId).tracks;
+                else if (source === 'search') list = state.searchResults;
 
                 if (list.length > 0) {
                     const randIndex = Math.floor(Math.random() * list.length);
@@ -622,6 +708,11 @@ document.addEventListener('DOMContentLoaded', () => {
             targetPlaylist = state.localTracks;
         } else if (source === 'cloud') {
             targetPlaylist = state.cloudTracks;
+        } else if (source === 'search') {
+            // Only play the selected track, ignore the rest of the search results
+            const selectedTrack = state.searchResults[index];
+            targetPlaylist = [selectedTrack];
+            index = 0; // Reset index since playlist is now size 1
         }
 
         // If clicking the currently playing track, just toggle play/pause
@@ -648,6 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let list = [];
         if (source === 'library') list = [...state.localTracks, ...state.cloudTracks];
         else if (source === 'playlist') list = state.playlists.find(p => p.id == playlistId).tracks;
+        else if (source === 'search') list = state.searchResults;
 
         ctxTrack = list[index];
 
@@ -912,11 +1004,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleShuffle() {
         state.isShuffle = !state.isShuffle;
         shuffleBtn.classList.toggle('active', state.isShuffle);
+        if (fpShuffle) fpShuffle.classList.toggle('active', state.isShuffle);
     }
 
     function toggleRepeat() {
         state.isRepeat = !state.isRepeat;
         repeatBtn.classList.toggle('active', state.isRepeat);
+        if (fpRepeat) fpRepeat.classList.toggle('active', state.isRepeat);
     }
 
     function toggleLike() {
@@ -1095,6 +1189,57 @@ document.addEventListener('DOMContentLoaded', () => {
     fpNext.addEventListener('click', playNext);
     fpShuffle.addEventListener('click', toggleShuffle);
     fpRepeat.addEventListener('click', toggleRepeat);
+
+    // Mobile Seeking Logic
+    const fpProgressWrapper = document.getElementById('fpProgressWrapper');
+    let isDraggingFp = false;
+
+    function handleFpSeek(clientX) {
+        if (!audioPlayer.duration) return;
+        const rect = fpProgressWrapper.getBoundingClientRect();
+        const width = rect.width;
+        const offsetX = clientX - rect.left;
+        let percent = offsetX / width;
+        if (percent < 0) percent = 0;
+        if (percent > 1) percent = 1;
+
+        audioPlayer.currentTime = percent * audioPlayer.duration;
+        // Update visual immediately
+        document.getElementById('fpProgressFill').style.width = `${percent * 100}%`;
+        document.getElementById('fpCurrentTime').innerText = formatTime(audioPlayer.currentTime);
+    }
+
+    fpProgressWrapper.addEventListener('click', (e) => {
+        handleFpSeek(e.clientX);
+    });
+
+    fpProgressWrapper.addEventListener('touchstart', (e) => {
+        isDraggingFp = true;
+    });
+
+    fpProgressWrapper.addEventListener('touchmove', (e) => {
+        if (!isDraggingFp) return;
+        // Prevent scroll while scrubbing
+        e.preventDefault();
+
+        // Update visual but don't seek audio yet (too laggy) or seek if performant
+        const rect = fpProgressWrapper.getBoundingClientRect();
+        const width = rect.width;
+        const offsetX = e.touches[0].clientX - rect.left;
+        let percent = offsetX / width;
+        if (percent < 0) percent = 0;
+        if (percent > 1) percent = 1;
+
+        document.getElementById('fpProgressFill').style.width = `${percent * 100}%`;
+        document.getElementById('fpCurrentTime').innerText = formatTime(percent * audioPlayer.duration);
+    });
+
+    fpProgressWrapper.addEventListener('touchend', (e) => {
+        if (isDraggingFp) {
+            handleFpSeek(e.changedTouches[0].clientX);
+            isDraggingFp = false;
+        }
+    });
 
     // Sync Full Player UI with Main State
     function updateFullPlayerUI() {
