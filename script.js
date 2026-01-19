@@ -601,11 +601,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Expose playTrack to global scope for HTML onclick
-    // Expose playTrack to global scope for HTML onclick
-    // Expose playTrack to global scope for HTML onclick
     window.playTrack = function (index, source, playlistId = null) {
         console.log(`User clicked track ${index} from ${source}`);
-        if (event.target.closest('.extra-btn')) return; // Prevent click if clicking the dots
+        if (event && event.target && event.target.closest('.extra-btn')) return; // Prevent click if clicking the dots
+
+        // Handle 'current-context' source (used by Queue)
+        if (source === 'current-context') {
+            state.currentIndex = index;
+            loadTrack(state.playlist[index]);
+            return;
+        }
 
         let targetPlaylist = [];
         if (source === 'library') {
@@ -1265,18 +1270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         div.addEventListener('click', onClick);
         return div;
     }
-
-    // Improve PlayTrack to handle 'current-context' source
-    const originalPlayTrack = window.playTrack;
-    window.playTrack = function (index, source, playlistId) {
-        if (source === 'current-context') {
-            // Just jump index
-            state.currentIndex = index;
-            loadTrack(state.playlist[index]);
-            return;
-        }
-        originalPlayTrack(index, source, playlistId);
-    };
 
     // Update Full Player Background on Track Load
     // We hook into the mutation observer we already added or just add logic to updateFullPlayerUI
