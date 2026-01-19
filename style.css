@@ -1435,3 +1435,142 @@ body {
     .modal-list li i {
         font-size: 20px;
     }
+}
+
+/* Queue Overlay Styles */
+.queue-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 400px;
+    height: 100vh;
+    height: 100dvh;
+    background-color: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(20px);
+    z-index: 3000;
+    padding: 24px;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    visibility: hidden;
+}
+
+.queue-overlay.active {
+    transform: translateX(0);
+    visibility: visible;
+}
+
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #282828;
+}
+
+.queue-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-base);
+}
+
+.queue-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.queue-section-title {
+    color: var(--text-subdued);
+    font-size: 14px;
+    font-weight: 700;
+    margin: 16px 0 8px;
+}
+
+.queue-item {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 12px;
+    padding: 8px;
+    border-radius: 4px;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.queue-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.queue-item.playing {
+    color: var(--accent-color);
+}
+
+.queue-item img {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.queue-item-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.queue-item-title {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    color: #fff;
+}
+
+.queue-item.playing .queue-item-title {
+    color: var(--accent-color);
+}
+
+.queue-item-artist {
+    font-size: 12px;
+    color: var(--text-subdued);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* Mobile Player Refinements */
+.full-player-overlay {
+    background: radial-gradient(circle at center top, #333 0%, #121212 90%);
+}
+
+.full-player-info h3 {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.full-player-info p {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+/* Make Mobile Queue Full Screen / Bottom Sheet */
+@media (max-width: 768px) {
+    .queue-overlay {
+        width: 100%;
+        bottom: 0;
+        top: unset;
+        height: 85vh;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        transform: translateY(100%);
+    }
+
+    .queue-overlay.active {
+        transform: translateY(0);
+    }
+}

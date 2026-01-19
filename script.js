@@ -1146,6 +1146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 3. Hook into Play/Pause Toggle for Icon
+    // 3. Hook into Play/Pause Toggle for Icon
     audioPlayer.addEventListener('play', () => {
         const icon = fpPlayPause.querySelector('i');
         icon.className = 'ph-fill ph-pause';
@@ -1155,4 +1156,147 @@ document.addEventListener('DOMContentLoaded', () => {
         icon.className = 'ph-fill ph-play';
     });
 
+
+    // --- Queue View Logic ---
+    const queueOverlay = document.getElementById('queueOverlay');
+    const queueContent = document.getElementById('queueContent');
+    const closeQueueBtn = document.getElementById('closeQueueBtn');
+    const mobileQueueBtn = document.getElementById('mobileQueueBtn');
+
+    // Updated Desktop Selector with ID
+    const desktopQueueBtn = document.getElementById('desktopQueueBtn');
+
+    function toggleQueue() {
+        const isActive = queueOverlay.classList.contains('active');
+        if (isActive) {
+            queueOverlay.classList.remove('active');
+        } else {
+            renderQueueUI();
+            queueOverlay.classList.add('active');
+        }
+    }
+
+    if (mobileQueueBtn) mobileQueueBtn.addEventListener('click', toggleQueue);
+    if (desktopQueueBtn) desktopQueueBtn.addEventListener('click', toggleQueue);
+    else {
+        // Fallback if ID not found yet (should be there)
+        const oldBtn = document.querySelector('.player-bar .ph-list');
+        if (oldBtn) oldBtn.closest('button').addEventListener('click', toggleQueue);
+    }
+
+    if (closeQueueBtn) closeQueueBtn.addEventListener('click', () => queueOverlay.classList.remove('active'));
+
+    function renderQueueUI() {
+        if (!queueContent) return;
+        queueContent.innerHTML = '';
+
+        // 1. Now Playing
+        if (state.currentTrack) {
+            const nowPlayingDiv = document.createElement('div');
+            nowPlayingDiv.innerHTML = `
+                <div class="queue-section-title">Reproduciendo ahora</div>
+                <div class="queue-item playing">
+                    <img src="${state.currentTrack.img}" alt="Art">
+                    <div class="queue-item-info">
+                        <span class="queue-item-title">${state.currentTrack.title}</span>
+                        <span class="queue-item-artist">${state.currentTrack.artist}</span>
+                    </div>
+                    <i class="ph-fill ph-speaker-high" style="color: var(--accent-color);"></i>
+                </div>
+            `;
+            queueContent.appendChild(nowPlayingDiv);
+        }
+
+        // 2. User Queue (Manually added)
+        if (state.queue.length > 0) {
+            const userQueueDiv = document.createElement('div');
+            userQueueDiv.innerHTML = `<div class="queue-section-title">A continuación en la cola</div>`;
+
+            state.queue.forEach((track, idx) => {
+                const item = createQueueItem(track, () => {
+                    // Play from Queue
+                    // Remove from queue and play
+                    state.queue.splice(idx, 1);
+                    loadTrack(track); // Note: loadTrack calls updateFullPlayerUI -> which calls renderQueueUI below
+                });
+                userQueueDiv.appendChild(item);
+            });
+            queueContent.appendChild(userQueueDiv);
+        }
+
+        // 3. Next from Context (Playlist)
+        // Show next 20 tracks from current playlist
+        if (state.playlist.length > 0) {
+            const ctxEl = document.getElementById('fpContext');
+            const contextName = ctxEl ? ctxEl.innerText : 'Contexto';
+            const nextTracksDiv = document.createElement('div');
+            nextTracksDiv.innerHTML = `<div class="queue-section-title">A continuación de: ${contextName}</div>`;
+
+            // Logic: Start from currentIndex + 1
+            let nextIndex = state.currentIndex + 1;
+            let count = 0;
+            const maxToShow = 20;
+
+            // Simple loop
+            while (nextIndex < state.playlist.length && count < maxToShow) {
+                const track = state.playlist[nextIndex];
+                const captureIndex = nextIndex; // closure
+                const item = createQueueItem(track, () => {
+                    playTrack(captureIndex, 'current-context'); // We need a way to say "Just jump to index in current playlist"
+                });
+                nextTracksDiv.appendChild(item);
+                nextIndex++;
+                count++;
+            }
+            queueContent.appendChild(nextTracksDiv);
+        }
+    }
+
+    function createQueueItem(track, onClick) {
+        const div = document.createElement('div');
+        div.className = 'queue-item';
+        div.innerHTML = `
+            <img src="${track.img}" alt="Art">
+            <div class="queue-item-info">
+                <span class="queue-item-title">${track.title}</span>
+                <span class="queue-item-artist">${track.artist}</span>
+            </div>
+        `;
+        div.addEventListener('click', onClick);
+        return div;
+    }
+
+    // Improve PlayTrack to handle 'current-context' source
+    const originalPlayTrack = window.playTrack;
+    window.playTrack = function (index, source, playlistId) {
+        if (source === 'current-context') {
+            // Just jump index
+            state.currentIndex = index;
+            loadTrack(state.playlist[index]);
+            return;
+        }
+        originalPlayTrack(index, source, playlistId);
+    };
+
+    // Update Full Player Background on Track Load
+    // We hook into the mutation observer we already added or just add logic to updateFullPlayerUI
+    const originalUpdateFP = updateFullPlayerUI;
+    updateFullPlayerUI = function () {
+        // Call original
+        if (typeof originalUpdateFP === 'function') originalUpdateFP();
+
+        // Update Background based on track color or fallback
+        const bg = document.querySelector('.full-player-overlay');
+        const color = state.currentTrack && state.currentTrack.color ? state.currentTrack.color : '#533E3E';
+
+        // Use a radial gradient for that 'spotlight' effect
+        if (bg) bg.style.background = `radial-gradient(circle at center top, ${color} 0%, #121212 90%)`;
+
+        // Refresh Queue if active
+        if (queueOverlay && queueOverlay.classList.contains('active')) {
+            renderQueueUI();
+        }
+    };
+
 });
+

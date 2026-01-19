@@ -170,7 +170,7 @@
             <!-- Right: Volume & Extra -->
             <div class="volume-controls">
                 <button class="extra-btn"><i class="ph ph-microphone-stage"></i></button>
-                <button class="extra-btn"><i class="ph ph-list"></i></button>
+                <button class="extra-btn" id="desktopQueueBtn"><i class="ph ph-list"></i></button>
                 <div class="volume-wrapper">
                     <i class="ph-fill ph-speaker-high"></i>
                     <div class="volume-bar-wrapper">
@@ -237,7 +237,18 @@
 
         <div class="full-player-bottom">
             <button class="icon-btn"><i class="ph ph-speaker-high"></i></button>
-            <button class="icon-btn"><i class="ph ph-list"></i></button>
+            <button class="icon-btn" id="mobileQueueBtn"><i class="ph ph-list"></i></button>
+        </div>
+    </div>
+
+    <!-- Queue Overlay -->
+    <div id="queueOverlay" class="queue-overlay">
+        <div class="queue-header">
+            <h3>Cola de reproducción</h3>
+            <button id="closeQueueBtn" class="icon-btn"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="queue-content" id="queueContent">
+            <!-- Dynamic Queue Content -->
         </div>
     </div>
 
