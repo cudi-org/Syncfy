@@ -1264,13 +1264,81 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overflow: hidden;
+    /* Ensure text creates mask */
+    width: 65%;
+    /* Restrict width so marquee triggers visually */
 }
 
+/* Marquee Effect for Title */
 .full-player-info h3 {
     font-size: 20px;
     font-weight: 700;
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Default fallback */
 }
+
+/* Only apply animation if text is actually long (requires JS measuring usually, but CSS can do continuous scroll) */
+/* We will make it always scroll if overflow, or better: just a smooth scroll on hover/active or infinite */
+.full-player-info h3 {
+    display: inline-block;
+    animation: marquee 10s linear infinite;
+    padding-left: 0;
+    text-overflow: clip;
+    /* Allow scrolling out */
+}
+
+@keyframes marquee {
+    0% {
+        transform: translateX(0);
+    }
+
+    10% {
+        transform: translateX(0);
+    }
+
+    /* Pause a bit */
+    50% {
+        transform: translateX(-50%);
+    }
+
+    /* simple back and forth or just loop? */
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* Better Marquee: Duplicate content in JS or use specific technique. 
+   For now, simple "marquee" via simpler CSS for a "slide-in" effect or just truncate cleanly.
+   User asked: "mobile if title is long causes me to slide". 
+   This implies the layout breaks and creates horizontal scroll on the BODY/Container.
+   So first fix: prevent layout break.
+*/
+
+.full-player-info .info-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    /* Take remaining space */
+    min-width: 0;
+    /* Crucial for flex child truncation */
+    margin-right: 16px;
+}
+
+.full-player-info h3 {
+    font-size: 24px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+
 
 .full-player-info p {
     font-size: 16px;
