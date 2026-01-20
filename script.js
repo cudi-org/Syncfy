@@ -1100,7 +1100,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function aplicarMetadatos(data) {
         trackNameEl.innerText = data.title;
         artistNameEl.innerText = data.artist;
-        // Podríamos actualizar más cosas aquí si fuera necesario
+
+        // Update Document Title (Browser Tab / System Fallback)
+        document.title = `${data.title} • ${data.artist}`;
+
+        // Media Session API (System Notifications / Lock Screen)
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: data.title,
+                artist: data.artist,
+                album: data.album || 'Syncfy',
+                artwork: [
+                    { src: state.currentTrack?.img || 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+                ]
+            });
+
+            // Action Handlers
+            navigator.mediaSession.setActionHandler('play', () => {
+                if (audioPlayer.paused) togglePlay();
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                if (!audioPlayer.paused) togglePlay();
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+            navigator.mediaSession.setActionHandler('nexttrack', playNext);
+
+            // Optional: Seek handlers
+            try {
+                navigator.mediaSession.setActionHandler('seekto', (details) => {
+                    if (details.fastSeek && 'fastSeek' in audioPlayer) {
+                        audioPlayer.fastSeek(details.seekTime);
+                        return;
+                    }
+                    audioPlayer.currentTime = details.seekTime;
+                    updateProgress();
+                });
+            } catch (e) { }
+        }
     }
 
     // PWA Install Logic

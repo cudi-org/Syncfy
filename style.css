@@ -2039,4 +2039,32 @@ body {
         width: 24px;
         text-align: center;
     }
+
+    /* Mobile Progress Bar Time Visibility */
+    .full-player-progress {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100%;
+        margin-bottom: 32px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .full-player-progress .time-row {
+        font-size: 14px !important;
+        color: #ffffff !important;
+        /* Pure White */
+        margin-top: 12px;
+        font-weight: 500;
+        display: flex !important;
+        justify-content: space-between !important;
+        width: 100%;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .time {
+        display: block !important;
+    }
 }
