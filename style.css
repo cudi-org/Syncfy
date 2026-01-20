@@ -1385,18 +1385,32 @@ body {
     font-family: var(--font-family);
 }
 
+/* Full Player Controls Visibility Fix */
 .full-player-controls {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
     margin-bottom: 32px;
+    padding: 0 16px;
 }
 
 .control-btn {
-    background: none;
+    background: transparent;
     border: none;
     color: #fff;
-    font-size: 24px;
+    font-size: 28px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.control-btn:active {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .control-btn.active {
@@ -1407,12 +1421,117 @@ body {
 .control-btn.active::after {
     content: '•';
     position: absolute;
-    bottom: -10px;
+    bottom: 8px;
+    /* Adjusted position */
     left: 50%;
     transform: translateX(-50%);
     font-size: 20px;
     color: #1DB954;
 }
+
+/* Track List Grid Styles */
+.track-list-grid,
+.track-item-grid {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 40px;
+    /* Revert to Original */
+    gap: 16px;
+    align-items: center;
+    padding: 0 16px;
+}
+
+.track-list-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    color: var(--text-subdued);
+    font-size: 14px;
+}
+
+.track-list-grid span {
+    text-align: left;
+    /* Force left align headers */
+}
+
+
+
+.track-item-grid {
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.track-item-grid:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.track-index {
+    color: var(--text-subdued);
+    font-size: 14px;
+    text-align: center;
+}
+
+.track-info {
+    display: flex;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+    /* Prevent spill */
+}
+
+.track-thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.track-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    align-items: flex-start;
+    /* Force Left Align */
+    text-align: left;
+}
+
+.track-title {
+    color: var(--text-base);
+    font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    font-size: 16px;
+}
+
+.track-artist-mobile {
+    display: none;
+    /* Hidden on desktop */
+    font-size: 14px;
+    color: var(--text-subdued);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.track-artist-desktop {
+    color: var(--text-subdued);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.desktop-only {
+    display: block;
+}
+
+
 
 .play-pause-btn {
     width: 64px;
@@ -1558,14 +1677,19 @@ body {
 }
 
 .queue-item {
-    display: grid;
-    grid-template-columns: 40px 1fr;
+    display: flex;
     gap: 12px;
     padding: 8px;
     border-radius: 4px;
     align-items: center;
     cursor: pointer;
     transition: background-color 0.1s;
+}
+
+.queue-item.dragging {
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed #555;
 }
 
 .queue-item:hover {
@@ -1581,12 +1705,15 @@ body {
     height: 40px;
     border-radius: 4px;
     object-fit: cover;
+    flex-shrink: 0;
 }
 
 .queue-item-info {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    flex: 1;
+    min-width: 0;
 }
 
 .queue-item-title {
@@ -1640,5 +1767,276 @@ body {
 
     .queue-overlay.active {
         transform: translateY(0);
+    }
+
+    /* Mobile Responsive Adjustments (Appended) */
+    @media (max-width: 768px) {
+        .full-player-controls {
+            padding: 0;
+            justify-content: space-evenly;
+            /* Better spacing on mobile */
+        }
+
+        .control-btn {
+            font-size: 32px;
+            /* Bigger touch targets */
+            width: 64px;
+            height: 64px;
+        }
+
+        /* Track List Mobile: 3 columns (Index, Info, Menu) */
+        .track-list-grid,
+        .track-item-grid {
+            grid-template-columns: 32px 1fr 32px !important;
+            gap: 12px;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .desktop-only {
+            display: none !important;
+        }
+
+        .track-artist-mobile {
+            display: block !important;
+        }
+
+        .track-list-header {
+            display: none !important;
+            /* Optionally hide header on mobile to save space */
+        }
+
+        .track-index {
+            font-size: 12px;
+        }
+
+        .track-title {
+            font-size: 14px;
+        }
+
+        /* Mobile Context Menu (Bottom Sheet) */
+        .context-menu {
+            position: fixed !important;
+            top: auto !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background-color: #282828 !important;
+            border-radius: 16px 16px 0 0 !important;
+            padding: 16px 0 !important;
+            z-index: 10000 !important;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6) !important;
+            max-height: 60vh;
+            overflow-y: auto;
+            visibility: visible;
+        }
+
+        .context-menu button {
+            width: 100%;
+            text-align: left;
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            border-bottom: 1px solid #333;
+            font-size: 16px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .context-menu button i {
+            font-size: 20px;
+            color: #1DB954;
+            /* Optional accent */
+        }
+    }
+}
+
+/* ========================================= */
+/* FINAL MOBILE OVERRIDES (Fixed Layout)     */
+/* ========================================= */
+@media (max-width: 768px) {
+
+    /* 1. Queue Overlay Bottom Sheet */
+    .queue-overlay {
+        width: 100%;
+        bottom: 0;
+        top: unset;
+        height: 85vh;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    .queue-overlay.active {
+        transform: translateY(0);
+    }
+
+    /* 2. Full Player Controls - Force Visibility */
+    .full-player-controls {
+        padding: 0 16px;
+        justify-content: space-evenly;
+        position: relative;
+        z-index: 500;
+        margin-bottom: 24px;
+        display: flex !important;
+        align-items: center;
+    }
+
+    .control-btn {
+        font-size: 32px;
+        width: 64px;
+        height: 64px;
+        background: transparent !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        color: #fff !important;
+        border: none !important;
+    }
+
+    .control-btn.active {
+        color: #1DB954 !important;
+        position: relative;
+    }
+
+    /* 3. Track List - Specific Mobile Layout (Spotify Style) */
+    .track-list-grid {
+        display: none !important;
+        /* Hide Desktop Header */
+    }
+
+    /* Layout: Image | Info | Menu */
+    .track-item-grid {
+        display: flex !important;
+        /* Flex row */
+        align-items: center;
+        gap: 16px;
+        padding: 12px 16px;
+        grid-template-columns: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* Hide Desktop Columns */
+    .track-index,
+    .desktop-only,
+    .track-artist-desktop {
+        display: none !important;
+    }
+
+    /* Big Thumbnail */
+    .track-thumb {
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+
+    /* Vertical Text Stack */
+    .track-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start !important;
+        gap: 4px;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .track-text {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .track-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: #fff;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+    }
+
+    .track-artist-mobile {
+        display: block !important;
+        font-size: 14px;
+        color: #b3b3b3;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+    }
+
+    /* Context Menu Button (3 Dots) - Force Visibility */
+    .extra-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 48px;
+        /* Taller touch target */
+        background: transparent !important;
+        border: none !important;
+        color: #b3b3b3 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        padding: 0;
+        margin-left: 8px;
+        /* Space from text */
+    }
+
+    .extra-btn i {
+        font-size: 24px !important;
+    }
+
+    /* 4. Context Menu (Bottom Sheet) */
+    .context-menu {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        background-color: #282828 !important;
+        border-radius: 16px 16px 0 0 !important;
+        padding: 16px 0 !important;
+        z-index: 10000 !important;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6) !important;
+        max-height: 60vh;
+        overflow-y: auto;
+        visibility: visible;
+        display: block;
+    }
+
+    .context-menu button {
+        width: 100%;
+        text-align: left;
+        padding: 16px 24px;
+        background: none;
+        border: none;
+        border-bottom: 1px solid #333;
+        font-size: 16px;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .context-menu button i {
+        font-size: 22px;
+        color: #1DB954;
+        width: 24px;
+        text-align: center;
     }
 }

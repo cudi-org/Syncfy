@@ -565,24 +565,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             </div>
 
-            <div class="track-list-header" style="display: grid; grid-template-columns: 40px 1fr 1fr 40px; padding: 0 16px 12px; border-bottom: 1px solid #282828; color: var(--text-subdued); font-size: 14px;">
+            <div class="track-list-header track-list-grid">
                 <span>#</span>
                 <span>Título</span>
-                <span>Artista</span>
+                <span class="desktop-only">Artista</span>
                 <span></span>
             </div>
             <div class="tracks-wrapper">
                 ${tracks.map((track, index) => `
-                    <div class="track-item" onclick="playTrack(${index}, '${source}', '${playlistId || ''}')" style="display: grid; grid-template-columns: 40px 1fr 1fr 40px; padding: 12px 16px; border-radius: 4px; cursor: pointer; align-items: center; transition: background 0.2s;">
-                        <span style="color: var(--text-subdued);">${index + 1}</span>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <img src="${track.img}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                            <div style="overflow: hidden;">
-                                <span style="display:block; color: ${state.currentTrack === track ? 'var(--accent-color)' : 'var(--text-base)'}; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${track.title}</span>
+                    <div class="track-item track-item-grid" onclick="playTrack(${index}, '${source}', '${playlistId || ''}')">
+                        <span class="track-index">${index + 1}</span>
+                        <div class="track-info">
+                            <img src="${track.img}" class="track-thumb">
+                            <div class="track-text">
+                                <span class="track-title" style="color: ${state.currentTrack === track ? 'var(--accent-color)' : 'var(--text-base)'};">${track.title}</span>
+                                <span class="track-artist-mobile">${track.artist}</span>
                             </div>
                         </div>
-                        <span style="color: var(--text-subdued); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${track.artist}</span>
-                        <button class="extra-btn" onclick="openContextMenu(event, ${index}, '${source}', '${playlistId || ''}')" style="font-size: 20px;"><i class="ph-bold ph-dots-three"></i></button>
+                        <span class="track-artist-desktop desktop-only">${track.artist}</span>
+                        <button class="extra-btn" onclick="openContextMenu(event, ${index}, '${source}', '${playlistId || ''}')"><i class="ph-bold ph-dots-three"></i></button>
                     </div>
                 `).join('')}
             </div>
@@ -1336,6 +1337,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (closeQueueBtn) closeQueueBtn.addEventListener('click', () => queueOverlay.classList.remove('active'));
 
+    let draggedItemIndex = null;
+
     function renderQueueUI() {
         if (!queueContent) return;
         queueContent.innerHTML = '';
@@ -1357,42 +1360,38 @@ document.addEventListener('DOMContentLoaded', () => {
             queueContent.appendChild(nowPlayingDiv);
         }
 
-        // 2. User Queue (Manually added)
+        // 2. User Queue (Manually added) - DRAGGABLE
         if (state.queue.length > 0) {
             const userQueueDiv = document.createElement('div');
             userQueueDiv.innerHTML = `<div class="queue-section-title">A continuación en la cola</div>`;
 
             state.queue.forEach((track, idx) => {
                 const item = createQueueItem(track, () => {
-                    // Play from Queue
                     // Remove from queue and play
                     state.queue.splice(idx, 1);
-                    loadTrack(track); // Note: loadTrack calls updateFullPlayerUI -> which calls renderQueueUI below
-                });
+                    loadTrack(track);
+                }, true, idx); // draggable=true
                 userQueueDiv.appendChild(item);
             });
             queueContent.appendChild(userQueueDiv);
         }
 
         // 3. Next from Context (Playlist)
-        // Show next 20 tracks from current playlist
         if (state.playlist.length > 0) {
             const ctxEl = document.getElementById('fpContext');
             const contextName = ctxEl ? ctxEl.innerText : 'Contexto';
             const nextTracksDiv = document.createElement('div');
             nextTracksDiv.innerHTML = `<div class="queue-section-title">A continuación de: ${contextName}</div>`;
 
-            // Logic: Start from currentIndex + 1
             let nextIndex = state.currentIndex + 1;
             let count = 0;
             const maxToShow = 20;
 
-            // Simple loop
             while (nextIndex < state.playlist.length && count < maxToShow) {
                 const track = state.playlist[nextIndex];
-                const captureIndex = nextIndex; // closure
+                const captureIndex = nextIndex;
                 const item = createQueueItem(track, () => {
-                    playTrack(captureIndex, 'current-context'); // We need a way to say "Just jump to index in current playlist"
+                    playTrack(captureIndex, 'current-context');
                 });
                 nextTracksDiv.appendChild(item);
                 nextIndex++;
@@ -1402,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function createQueueItem(track, onClick) {
+    function createQueueItem(track, onClick, draggable = false, index = -1) {
         const div = document.createElement('div');
         div.className = 'queue-item';
         div.innerHTML = `
@@ -1411,8 +1410,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="queue-item-title">${track.title}</span>
                 <span class="queue-item-artist">${track.artist}</span>
             </div>
+            ${draggable ? '<i class="ph-bold ph-list" style="margin-left:auto; color: #666; cursor: grab;"></i>' : ''}
         `;
-        div.addEventListener('click', onClick);
+
+        if (draggable) {
+            div.setAttribute('draggable', 'true');
+            div.style.cursor = 'grab';
+
+            div.addEventListener('dragstart', (e) => {
+                draggedItemIndex = index;
+                div.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                // Set minimal data to satisfy DnD
+                e.dataTransfer.setData('text/plain', index);
+            });
+
+            div.addEventListener('dragend', () => {
+                div.classList.remove('dragging');
+                draggedItemIndex = null;
+            });
+
+            div.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Allow dropping
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            div.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (draggedItemIndex === null || draggedItemIndex === index) return;
+
+                // Reorder array
+                // Move FROM draggedItemIndex TO index
+                const itemToMove = state.queue[draggedItemIndex];
+                state.queue.splice(draggedItemIndex, 1);
+                state.queue.splice(index, 0, itemToMove);
+
+                // Update UI
+                renderQueueUI();
+            });
+        }
+
+        div.addEventListener('click', (e) => {
+            // Don't trigger play if clicking the drag handle
+            if (!e.target.closest('.ph-list')) {
+                onClick();
+            }
+        });
+
         return div;
     }
 
