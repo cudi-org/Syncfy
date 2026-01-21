@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCloudPlaylist() { renderLibrary(); }
 
     // --- Cloud Functions ---
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyhzf2yqf-9vUgI9vCF96XKKX77kuwEPfJy-Gw_oCiG5eq4chHf5NwXUlVC_Trn2oZ5/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxl8Vl3P7tioOnKf7Y7jhDWlGPSoVoOkPJhmZ8Hnp-GPh4yH-lMa2HbDMk3ThXz1lPC/exec";
     const PROXY_URL = "https://syncfy.syncfy-api.workers.dev/?id=";
 
     async function fetchCloudMusic(pin) {
