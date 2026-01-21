@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCloudPlaylist() { renderLibrary(); }
 
     // --- Cloud Functions ---
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyONs41LRmI-6Co8nqfP8Fb0CRmu3k9wSrep_L5n0ynWsPBOBZZTyVFe6IOxdmbOvzL/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyhzf2yqf-9vUgI9vCF96XKKX77kuwEPfJy-Gw_oCiG5eq4chHf5NwXUlVC_Trn2oZ5/exec";
     const PROXY_URL = "https://syncfy.syncfy-api.workers.dev/?id=";
 
     async function fetchCloudMusic(pin) {
@@ -623,9 +623,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Map backend data to app state
             const mappedTracks = items.map((item, index) => ({
-                id: item.id, // Google Drive ID needed for the worker
-                title: item.title || item.nombre || "Unknown Title",
-                artist: "Streaming Privado",
+                id: item.id,
+                title: item.title,
+                artist: item.artist,
                 src: item.url, // Keep original URL as backup/reference
                 img: "icons/icon-512.png",
                 isCloud: true,
@@ -895,34 +895,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Si ya la conocemos, actualizamos la interfaz al instante
             aplicarMetadatos(JSON.parse(cachedData));
         } else {
-            // Si es nueva, ponemos datos por defecto y empezamos a "leer" el archivo
-            aplicarMetadatos({ title: track.title, artist: "Sincronizando...", album: "Syncfy Cloud" });
-
-            // Leemos los metadatos reales del archivo que ya se está descargando
-            // Solo intentamos leer si es cloud o tiene src válido
-            if (window.jsmediatags) {
-                window.jsmediatags.read(audioPlayer.src, {
-                    onSuccess: function (tag) {
-                        const info = {
-                            title: tag.tags.title || track.title,
-                            artist: tag.tags.artist || "Artista desconocido",
-                            album: tag.tags.album || "Álbum"
-                        };
-                        // Guardamos en la memoria del navegador
-                        localStorage.setItem(cacheKey, JSON.stringify(info));
-                        // Aplicamos los cambios visuales
-                        aplicarMetadatos(info);
-                        console.log("Metadatos guardados para la próxima vez");
-                    },
-                    onError: (error) => {
-                        console.log("No se pudieron leer etiquetas:", error.type, error.info);
-                        // Fallback to initial track data if read fails
-                        aplicarMetadatos({ title: track.title, artist: track.artist });
-                    }
-                });
-            } else {
-                aplicarMetadatos({ title: track.title, artist: track.artist });
-            }
+            // Usamos los datos directos del objeto (que ya vienen limpios del JSON)
+            aplicarMetadatos({ title: track.title, artist: track.artist, album: "Syncfy Cloud" });
         }
 
         // Reset state UI
