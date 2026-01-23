@@ -24,6 +24,9 @@
 
     <!-- Icons (Phosphor Icons for a premium look) -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Lucide Icons (Requested for new features) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
 
@@ -74,21 +77,22 @@
                 </div>
 
                 <!-- Mobile Header Content -->
-                <div class="mobile-header-content" style="display: none;">
+                <div class="mobile-header-content">
                     <div class="user-menu mobile-user">
                         <div class="avatar">
                             <i class="ph-fill ph-user"></i>
                         </div>
-                    </div>
-                    <div class="filter-pills">
-                        <button class="pill active">Todos</button>
-                        <button class="pill">Música</button>
-                        <button class="pill">Pódcasts</button>
+                        <button class="icon-btn" id="mobileJamBtn" title="Jam / P2P" style="margin-left: 12px;">
+                            <i data-lucide="radio"></i>
+                        </button>
                     </div>
                 </div>
 
                 <div class="user-menu desktop-user">
                     <button class="install-pwa hidden" id="installBtn">Instalar App</button>
+                    <button class="icon-btn" id="openJamModalBtn" title="Jam / P2P">
+                        <i data-lucide="radio"></i>
+                    </button>
                     <div class="avatar">
                         <i class="ph-fill ph-user"></i>
                     </div>
@@ -294,6 +298,53 @@
                 <!-- Dynamic List -->
             </ul>
             <button id="closeAddToPlaylistModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>
+        </div>
+    </div>
+
+    <!-- Jam (P2P) Modal -->
+    <div id="jamModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content jam-content">
+            <div class="jam-header">
+                <h2>Syncfy Jam</h2>
+                <button class="close-modal-btn" id="closeJamModalBtn"><i data-lucide="x"></i></button>
+            </div>
+
+            <div class="jam-tabs">
+                <button class="jam-tab active" data-tab="host">Ser Anfitrión</button>
+                <button class="jam-tab" data-tab="guest">Unirse</button>
+            </div>
+
+            <div class="jam-body">
+                <!-- Host View -->
+                <div id="hostView" class="jam-view active">
+                    <p>Escanea para unirte y controlar la música.</p>
+                    <div id="qrcode" class="qr-container"></div>
+                    <div class="room-code-display">
+                        <span>Código de Sala:</span>
+                        <h1 id="hostRoomCode">----</h1>
+                    </div>
+                    <p class="status-text" id="hostStatus">Esperando conexiones...</p>
+                </div>
+
+                <!-- Guest View -->
+                <div id="guestView" class="jam-view">
+                    <p>Introduce el código de la sala.</p>
+                    <input type="text" id="joinRoomInput" class="pin-input room-input" placeholder="ABCD" maxlength="4"
+                        style="text-transform:uppercase;">
+
+                    <p>Elige tu color:</p>
+                    <div class="color-picker" id="colorPicker">
+                        <div class="color-option selected" data-color="#FFC212" style="background: #FFC212;"></div>
+                        <div class="color-option" data-color="#E91E63" style="background: #E91E63;"></div>
+                        <div class="color-option" data-color="#00E5FF" style="background: #00E5FF;"></div>
+                        <div class="color-option" data-color="#4CAF50" style="background: #4CAF50;"></div>
+                        <div class="color-option" data-color="#9C27B0" style="background: #9C27B0;"></div>
+                    </div>
+
+                    <button id="joinRoomBtn" class="pin-submit-btn">Unirse a la Jam</button>
+                    <p class="status-text" id="guestStatus"></p>
+                </div>
+            </div>
         </div>
     </div>
 

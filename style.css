@@ -819,13 +819,15 @@ body {
     .mobile-header-content {
         display: flex;
         align-items: center;
-        gap: 16px;
         width: 100%;
         padding-top: 12px;
+        justify-content: flex-end;
     }
 
     .user-menu.mobile-user {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
     .user-menu.desktop-user {
@@ -903,6 +905,7 @@ body {
         line-height: 1.2;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -2067,4 +2070,281 @@ body {
     .time {
         display: block !important;
     }
+}
+
+/* --- Jam / P2P Styles --- */
+
+/* Header Button */
+.jam-btn {
+    background-color: var(--accent-color);
+    border: none;
+    color: black;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.1s;
+    margin-right: 16px;
+}
+
+.jam-btn:hover {
+    transform: scale(1.05);
+}
+
+.jam-btn i {
+    width: 18px;
+    height: 18px;
+}
+
+/* Modal Content */
+.jam-content {
+    background: #181818;
+    width: 90%;
+    max-width: 400px;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #333;
+}
+
+.jam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.jam-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* Tabs */
+.jam-tabs {
+    display: flex;
+    background: #2A2A2A;
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 24px;
+}
+
+.jam-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-subdued);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.jam-tab.active {
+    background: var(--bg-level-3);
+    /* or just lighter gray */
+    background: #3E3E3E;
+    color: #fff;
+}
+
+/* Views */
+.jam-view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+}
+
+.jam-view.active {
+    display: flex;
+}
+
+/* Host View */
+.qr-container {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.room-code-display h1 {
+    font-size: 48px;
+    letter-spacing: 8px;
+    color: var(--accent-color);
+    margin-top: 8px;
+    font-family: monospace;
+}
+
+/* Guest View */
+.room-input {
+    text-align: center;
+    font-size: 24px;
+    letter-spacing: 4px;
+    width: 100%;
+}
+
+.color-picker {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.color-option {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s;
+}
+
+.color-option.selected {
+    border-color: #fff;
+    transform: scale(1.2);
+}
+
+.course-status {
+    font-size: 14px;
+    color: var(--text-subdued);
+}
+
+/* Queue Coloring */
+.queue-item-guest {
+    border-left: 4px solid transparent;
+    /* default */
+}
+
+/* Fix for Jam Icon in Header */
+.user-menu .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-base);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.user-menu .icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--accent-color);
+}
+
+.user-menu .icon-btn i,
+.user-menu .icon-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2px;
+}
+
+/* --- Jam Modal Design Refinements (Simplified) --- */
+
+/* Modal Title */
+.jam-header h2 {
+    color: var(--text-base);
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* Tabs */
+.jam-tabs {
+    background: #2A2A2A;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: none;
+    border: none;
+}
+
+.jam-tab {
+    color: var(--text-subdued);
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.jam-tab:hover {
+    color: var(--text-base);
+    background-color: transparent;
+}
+
+.jam-tab.active {
+    background-color: var(--accent-color) !important;
+    color: #000000 !important;
+    font-weight: 700;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Action Button (Join/Create) */
+.jam-join-btn,
+#joinRoomBtn {
+    background-color: var(--accent-color);
+    /* Keep primary action color */
+    color: black;
+    font-weight: 700;
+    text-transform: none;
+    /* Remove aggressive uppercase */
+    letter-spacing: normal;
+    border-radius: 24px;
+    /* Standard pill shape */
+    padding: 12px 24px;
+    width: 100%;
+    margin-top: 16px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s, background-color 0.2s;
+    box-shadow: none;
+    /* Remove 3D shadow */
+}
+
+#joinRoomBtn:hover {
+    transform: scale(1.02);
+    /* Subtle scale like other buttons */
+    background-color: var(--accent-hover);
+    box-shadow: none;
+}
+
+#joinRoomBtn:active {
+    transform: scale(0.98);
+    box-shadow: none;
+}
+
+/* Input Fields inside Modal */
+.room-input {
+    background: #333;
+    /* Standard input bg */
+    border: 1px solid transparent;
+    /* Cleaner border */
+    color: var(--text-base);
+    font-family: inherit;
+    /* Use standard font */
+    font-weight: 500;
+    border-radius: 4px;
+    transition: border-color 0.2s;
+}
+
+.room-input:focus {
+    border-color: var(--text-base);
+    /* White border on focus */
+    outline: none;
+    box-shadow: none;
+}
+
+/* Close Button Hover */
+.close-modal-btn:hover {
+    color: var(--text-base);
+    transform: none;
+    /* Remove rotation */
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
 }

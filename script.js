@@ -394,6 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Functions ---
 
+    window.renderHome = renderHome;
+
     function renderHome() {
         // Visual updates
         document.querySelectorAll('.main-nav li').forEach(li => li.classList.remove('active'));
@@ -760,9 +762,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('ctxQueue').addEventListener('click', () => {
         if (ctxTrack) {
-            state.queue.push(ctxTrack);
-            console.log("Added to queue", ctxTrack.title);
-            // Optionally show toast
+            // Check if Guest
+            if (typeof isHost !== 'undefined' && !isHost && dataChannel && dataChannel.readyState === 'open') {
+                // Send to Host
+                dataChannel.send(JSON.stringify({
+                    type: 'ADD_TO_QUEUE',
+                    track: ctxTrack,
+                    user: 'Guest',
+                    color: myColor
+                }));
+                if (typeof showNotification === 'function') showNotification("Solicitud enviada al Host");
+            } else {
+                // Local/Host Logic
+                state.queue.push(ctxTrack);
+                console.log("Added to queue", ctxTrack.title);
+                if (typeof showNotification === 'function') showNotification("Añadido a la cola");
+
+                if (typeof isHost !== 'undefined' && isHost && typeof syncHostState === 'function') syncHostState();
+            }
         }
     });
 
@@ -967,6 +984,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Error real al reproducir:", error);
             }
         }
+
+        // Broadcast Play
+        if (typeof broadcastCommand === 'function') broadcastCommand('play');
     }
 
     function pauseAudio() {
@@ -974,6 +994,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.isPlaying = false;
         playIcon.className = 'ph-fill ph-play'; // Explicitly set the play icon
         currentArtEl.classList.remove('playing');
+
+        // Broadcast Pause
+        if (typeof broadcastCommand === 'function') broadcastCommand('pause');
     }
 
     function toggleShuffle() {
@@ -1046,6 +1069,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const duration = audioPlayer.duration;
 
         audioPlayer.currentTime = (clickX / width) * duration;
+
+        // Broadcast Seek
+        if (typeof broadcastCommand === 'function') broadcastCommand('seek', audioPlayer.currentTime);
     }
 
     function setVolume(e) {
@@ -1414,6 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function createQueueItem(track, onClick, draggable = false, index = -1) {
         const div = document.createElement('div');
         div.className = 'queue-item';
+        if (track.color) div.style.borderLeft = `4px solid ${track.color}`; // Show Guest Color
         div.innerHTML = `
             <img src="${track.img}" alt="Art">
             <div class="queue-item-info">
@@ -1490,5 +1517,313 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-});
+
+    // --- JAM / P2P LOGIC ---
+    let signalingSocket = null;
+    let peerConnection = null;
+    let dataChannel = null;
+    let jamRoomId = null;
+    let isHost = false;
+    let myColor = '#FFC212'; // Default
+    const SIGNALING_URL = 'wss://syncfy-signalin.onrender.com';
+
+    // UI Elements
+    const jamModal = document.getElementById('jamModal');
+    const openJamModalBtn = document.getElementById('openJamModalBtn');
+    const closeJamModalBtn = document.getElementById('closeJamModalBtn');
+    const jamTabs = document.querySelectorAll('.jam-tab');
+    const hostView = document.getElementById('hostView');
+    const guestView = document.getElementById('guestView');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const hostStatus = document.getElementById('hostStatus');
+    const guestStatus = document.getElementById('guestStatus');
+    const colorPicker = document.getElementById('colorPicker');
+
+    // Init Icons
+    if (window.lucide) lucide.createIcons();
+
+    // Event Listeners
+    if (openJamModalBtn) openJamModalBtn.addEventListener('click', () => {
+        jamModal.style.display = 'flex';
+    });
+
+    const mobileJamBtn = document.getElementById('mobileJamBtn');
+    if (mobileJamBtn) mobileJamBtn.addEventListener('click', () => {
+        jamModal.style.display = 'flex';
+    });
+
+    if (closeJamModalBtn) closeJamModalBtn.addEventListener('click', () => {
+        jamModal.style.display = 'none';
+        // disconnect? maybe not, background jam
+    });
+
+    jamTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            jamTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            if (tab.dataset.tab === 'host') {
+                hostView.classList.add('active');
+                guestView.classList.remove('active');
+                if (!jamRoomId) startHosting();
+            } else {
+                hostView.classList.remove('active');
+                guestView.classList.add('active');
+            }
+        });
+    });
+
+    // Color Picker
+    if (colorPicker) {
+        colorPicker.addEventListener('click', (e) => {
+            if (e.target.classList.contains('color-option')) {
+                document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+                e.target.classList.add('selected');
+                myColor = e.target.dataset.color;
+            }
+        });
+    }
+
+    if (joinRoomBtn) joinRoomBtn.addEventListener('click', async () => {
+        const roomCode = document.getElementById('joinRoomInput').value.toUpperCase();
+        if (roomCode.length !== 4) {
+            guestStatus.innerText = "Código inválido (4 letras)";
+            return;
+        }
+
+        // CHECK PIN FIRST
+        // If global `state.cloudTracks` is empty, we force a PIN check.
+        if (state.cloudTracks.length === 0) {
+            const pin = prompt("🔐 PIN de la Nube requerido para unirte:");
+            if (!pin) return;
+            try {
+                guestStatus.innerText = "Verificando PIN...";
+                const tracks = await fetchCloudMusic(pin);
+                state.cloudTracks = tracks; // This populates local library for context
+                guestStatus.innerText = "PIN Correcto. Conectando...";
+            } catch (e) {
+                guestStatus.innerText = "PIN Incorrecto.";
+                return;
+            }
+        }
+
+        joinJam(roomCode);
+    });
+
+    // P2P Functions
+    function startHosting() {
+        isHost = true;
+        jamRoomId = generateRoomId();
+        document.getElementById('hostRoomCode').innerText = jamRoomId;
+
+        // QR Code
+        const qrContainer = document.getElementById('qrcode');
+        qrContainer.innerHTML = "";
+        const url = `${window.location.origin}${window.location.pathname}?room=${jamRoomId}`;
+        new QRCode(qrContainer, {
+            text: url,
+            width: 128,
+            height: 128,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+        });
+
+        hostStatus.innerText = "Conectando al servidor...";
+        connectSignaling(jamRoomId, 'create');
+    }
+
+    function joinJam(roomId) {
+        isHost = false;
+        jamRoomId = roomId;
+        guestStatus.innerText = "Conectando al servidor...";
+        connectSignaling(roomId, 'join');
+    }
+
+    function generateRoomId() {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let result = "";
+        for (let i = 0; i < 4; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+        return result;
+    }
+
+    function connectSignaling(room, action) {
+        signalingSocket = new WebSocket(SIGNALING_URL);
+
+        signalingSocket.onopen = () => {
+            console.log("WS Connected");
+            signalingSocket.send(JSON.stringify({ type: action, room: room }));
+            if (isHost) hostStatus.innerText = "Esperando invitados...";
+        };
+
+        signalingSocket.onmessage = async (msg) => {
+            const data = JSON.parse(msg.data);
+            console.log("Signal:", data);
+
+            if (data.type === 'offer') {
+                if (!isHost) {
+                    // Guest receives offer
+                    await setupPeerConnection();
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    signalingSocket.send(JSON.stringify({ type: 'answer', room: jamRoomId, answer: answer }));
+                }
+            } else if (data.type === 'answer') {
+                if (isHost) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                }
+            } else if (data.type === 'candidate') {
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                }
+            } else if (data.type === 'joined') {
+                if (isHost) {
+                    hostStatus.innerText = "Invitado detectado. Iniciando P2P...";
+                    createPeerConnection(); // Host initiates
+                }
+            } else if (data.type === 'error') {
+                alert("Error: " + data.message);
+            }
+        };
+    }
+
+    async function createPeerConnection() {
+        await setupPeerConnection();
+        dataChannel = peerConnection.createDataChannel("syncfy-jam");
+        setupDataChannelEvents();
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        signalingSocket.send(JSON.stringify({ type: 'offer', room: jamRoomId, offer: offer }));
+    }
+
+    async function setupPeerConnection() {
+        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        peerConnection = new RTCPeerConnection(config);
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                signalingSocket.send(JSON.stringify({ type: 'candidate', room: jamRoomId, candidate: event.candidate }));
+            }
+        };
+
+        peerConnection.ondatachannel = (event) => {
+            dataChannel = event.channel;
+            setupDataChannelEvents();
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+            console.log("P2P State:", peerConnection.connectionState);
+        };
+    }
+
+    function setupDataChannelEvents() {
+        dataChannel.onopen = () => {
+            console.log("Data Channel OPEN");
+            if (isHost) {
+                hostStatus.innerText = "¡Conectado P2P!";
+                // Send Initial State
+                syncHostState();
+            } else {
+                guestStatus.innerText = "¡Conectado a la Jam!";
+            }
+        };
+
+        dataChannel.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            handleP2PMessage(msg);
+        };
+    }
+
+    function handleP2PMessage(msg) {
+        if (msg.type === 'SYNC_PLAYLIST') {
+            // Guest receives playlist
+            state.playlist = msg.playlist;
+            state.queue = msg.queue;
+            state.currentTrack = msg.currentTrack; // May need to just use ID to avoid duplication
+            state.currentIndex = msg.currentIndex;
+
+            showNotification(`Sincronizado con Host`);
+        } else if (msg.type === 'SYNC_COMMAND') {
+            // Guest playback control
+            if (msg.command === 'play') {
+                // Try to find track
+                if (audioPlayer.src !== msg.src) {
+                    audioPlayer.src = msg.src;
+                }
+                audioPlayer.currentTime = msg.time;
+                audioPlayer.play();
+                state.isPlaying = true;
+                updatePlayBtnUI();
+            } else if (msg.command === 'pause') {
+                audioPlayer.pause();
+                state.isPlaying = false;
+                updatePlayBtnUI();
+            } else if (msg.command === 'seek') {
+                audioPlayer.currentTime = msg.time;
+            }
+        } else if (msg.type === 'ADD_TO_QUEUE') {
+            // Host receives request
+            const track = msg.track;
+            track.addedBy = msg.user;
+            track.color = msg.color;
+            state.queue.push(track);
+
+            // Show visually
+            if (typeof showNotification === 'function') showNotification(`Canción añadida por Invitado`);
+
+            // Broadcast update
+            syncHostState();
+
+            // If queue UI is open, refresh it
+            const queueOverlay = document.getElementById('queueOverlay');
+            if (queueOverlay && queueOverlay.style.display !== 'none') {
+                // Trigger refresh logic? The existing code doesn't have a clear "renderQueue" public function
+                // We might need to expose one or click the button.
+            }
+        }
+    }
+
+    function syncHostState() {
+        if (dataChannel && dataChannel.readyState === 'open') {
+            const payload = {
+                type: 'SYNC_PLAYLIST',
+                playlist: state.playlist,
+                queue: state.queue,
+                currentTrack: state.currentTrack,
+                currentIndex: state.currentIndex
+            };
+            dataChannel.send(JSON.stringify(payload));
+        }
+    }
+
+    function broadcastCommand(cmd, time = 0) {
+        if (isHost && dataChannel && dataChannel.readyState === 'open') {
+            console.log("Broadcasting", cmd);
+            dataChannel.send(JSON.stringify({
+                type: 'SYNC_COMMAND',
+                command: cmd,
+                time: time || audioPlayer.currentTime,
+                src: state.currentTrack ? state.currentTrack.src : ''
+            }));
+        }
+    }
+
+    // Expose for patching
+    window.broadcastCommand = broadcastCommand;
+    window.isHost = isHost; // Value copy issue? No, we need a getter
+    window.getIsHost = () => isHost;
+    window.getMyColor = () => myColor;
+
+    // DEEP LINK CHECK
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomSnap = urlParams.get('room');
+    if (roomSnap) {
+        jamModal.style.display = 'flex';
+        // Select Guest Mode
+        jamTabs[1].click();
+        const input = document.getElementById('joinRoomInput');
+        if (input) input.value = roomSnap;
+    }
+
+}); // END OF DOMContentLoaded
 
