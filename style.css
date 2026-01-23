@@ -1096,31 +1096,83 @@ body {
 }
 
 /* Modal Styles */
+/* Modal Styles */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
     justify-content: center;
-    z-index: 1000;
+    align-items: center;
+    z-index: 10000;
+    /* High z-index */
     backdrop-filter: blur(5px);
 }
 
 .modal-content {
-    background-color: var(--bg-elevated);
-    padding: 32px;
-    border-radius: 12px;
-    width: 100%;
+    background: var(--bg-card);
+    padding: 24px;
+    border-radius: 8px;
+    width: 90%;
     max-width: 400px;
     text-align: center;
-    position: relative;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-    border: 1px solid #333;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.modal-body {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.modal-btn.cancel {
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.modal-btn.cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-btn.confirm {
+    background: var(--accent-color);
+    color: #000;
+}
+
+.modal-btn.confirm:hover {
+    background: #1ed760;
+    /* Slightly lighter green */
+}
+
+
+
+
 
 .modal-content h2 {
     margin-bottom: 16px;
@@ -1182,7 +1234,7 @@ body {
     color: var(--text-base);
 }
 
-/* --- Full Screen Player Mobile Styles --- */
+/* Full Screen Player Mobile Styles */
 .full-player-overlay {
     display: flex;
     flex-direction: column;
@@ -1199,7 +1251,6 @@ body {
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
     overflow-y: auto;
     visibility: hidden;
-    /* Ensure it doesn't block clicks when hidden */
 }
 
 .full-player-overlay.active {
@@ -1248,6 +1299,8 @@ body {
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
     border-radius: 8px;
     overflow: hidden;
+    align-self: center;
+    /* Center Art */
 }
 
 .full-player-art img {
@@ -1268,12 +1321,9 @@ body {
     flex-direction: column;
     gap: 4px;
     overflow: hidden;
-    /* Ensure text creates mask */
     width: 65%;
-    /* Restrict width so marquee triggers visually */
 }
 
-/* Marquee Effect for Title */
 .full-player-info h3 {
     font-size: 20px;
     font-weight: 700;
@@ -1281,67 +1331,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Default fallback */
 }
-
-/* Only apply animation if text is actually long (requires JS measuring usually, but CSS can do continuous scroll) */
-/* We will make it always scroll if overflow, or better: just a smooth scroll on hover/active or infinite */
-.full-player-info h3 {
-    display: inline-block;
-    animation: marquee 10s linear infinite;
-    padding-left: 0;
-    text-overflow: clip;
-    /* Allow scrolling out */
-}
-
-@keyframes marquee {
-    0% {
-        transform: translateX(0);
-    }
-
-    10% {
-        transform: translateX(0);
-    }
-
-    /* Pause a bit */
-    50% {
-        transform: translateX(-50%);
-    }
-
-    /* simple back and forth or just loop? */
-    100% {
-        transform: translateX(0);
-    }
-}
-
-/* Better Marquee: Duplicate content in JS or use specific technique. 
-   For now, simple "marquee" via simpler CSS for a "slide-in" effect or just truncate cleanly.
-   User asked: "mobile if title is long causes me to slide". 
-   This implies the layout breaks and creates horizontal scroll on the BODY/Container.
-   So first fix: prevent layout break.
-*/
-
-.full-player-info .info-text {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    /* Take remaining space */
-    min-width: 0;
-    /* Crucial for flex child truncation */
-    margin-right: 16px;
-}
-
-.full-player-info h3 {
-    font-size: 24px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: block;
-}
-
-
 
 .full-player-info p {
     font-size: 16px;
@@ -1388,7 +1378,6 @@ body {
     font-family: var(--font-family);
 }
 
-/* Full Player Controls Visibility Fix */
 .full-player-controls {
     display: flex;
     justify-content: space-between;
@@ -1430,6 +1419,39 @@ body {
     transform: translateX(-50%);
     font-size: 20px;
     color: #1DB954;
+}
+
+/* Play button similar to Spotify (white circle) but sized correctly */
+.play-pause-btn {
+    width: 72px;
+    height: 72px;
+    background: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    color: #000;
+    font-size: 32px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    transition: transform 0.1s;
+}
+
+.play-pause-btn i {
+    color: #000 !important;
+}
+
+/* Fix Modal Transparency */
+.modal-content {
+    background-color: #1e1e1e;
+    /* Solid Dark Grey */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    border: none;
+}
+
+.pin-input {
+    background-color: #2a2a2a;
+    border: 1px solid #444;
 }
 
 /* Track List Grid Styles */

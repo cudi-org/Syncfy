@@ -763,22 +763,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ctxQueue').addEventListener('click', () => {
         if (ctxTrack) {
             // Check if Guest
-            if (typeof isHost !== 'undefined' && !isHost && dataChannel && dataChannel.readyState === 'open') {
-                // Send to Host
-                dataChannel.send(JSON.stringify({
-                    type: 'ADD_TO_QUEUE',
-                    track: ctxTrack,
-                    user: 'Guest',
-                    color: myColor
-                }));
-                if (typeof showNotification === 'function') showNotification("Solicitud enviada al Host");
+            if (typeof isHost !== 'undefined' && !isHost && signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+                agregarAFoliada(ctxTrack);
             } else {
                 // Local/Host Logic
                 state.queue.push(ctxTrack);
                 console.log("Added to queue", ctxTrack.title);
                 if (typeof showNotification === 'function') showNotification("Añadido a la cola");
 
-                if (typeof isHost !== 'undefined' && isHost && typeof syncHostState === 'function') syncHostState();
+                if (typeof isHost !== 'undefined' && isHost) broadcastStateUpdate();
             }
         }
     });
@@ -956,6 +949,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Control Functions ---
 
     function togglePlay() {
+        if (!isHost && signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+            const cmd = state.isPlaying ? 'PAUSE' : 'PLAY';
+            enviarComandoReproduccion(cmd);
+            return;
+        }
+
         if (!state.currentTrack && state.localTracks.length > 0) {
             playTrack(0, 'local');
             return;
@@ -987,6 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Broadcast Play
         if (typeof broadcastCommand === 'function') broadcastCommand('play');
+        if (isHost) broadcastStateUpdate(); // Broadcast State for Jam
     }
 
     function pauseAudio() {
@@ -997,6 +997,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Broadcast Pause
         if (typeof broadcastCommand === 'function') broadcastCommand('pause');
+        if (isHost) broadcastStateUpdate(); // Broadcast State for Jam
     }
 
     function toggleShuffle() {
@@ -1017,6 +1018,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playNext() {
+        if (!isHost && signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+            enviarComandoReproduccion('NEXT');
+            return;
+        }
         // Priority: Queue
         if (state.queue.length > 0) {
             const nextTrack = state.queue.shift();
@@ -1041,6 +1046,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playPrev() {
+        if (!isHost && signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+            enviarComandoReproduccion('PREV');
+            return;
+        }
         if (state.playlist.length === 0) return;
 
         // If playing > 3s, restart track like Spotify
@@ -1437,6 +1446,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Custom Modal Logic ---
+    function showConfirmModal(title, body) {
+        return new Promise((resolve, reject) => {
+            const modal = document.getElementById('confirmModal');
+            const titleEl = document.getElementById('confirmTitle');
+            const bodyEl = document.getElementById('confirmBody');
+            const cancelBtn = document.getElementById('confirmCancel');
+            const okBtn = document.getElementById('confirmOk');
+
+            if (!modal || !titleEl || !bodyEl || !cancelBtn || !okBtn) {
+                console.error("Faltan elementos del modal en el DOM", { modal, titleEl, bodyEl, cancelBtn, okBtn });
+                alert(title + "\n" + body); // Fallback to classic alert if DOM missing
+                resolve(true); // Auto-accept or handle gracefully
+                return;
+            }
+
+            titleEl.innerText = title;
+            bodyEl.innerText = body;
+
+            modal.style.display = 'flex';
+            modal.style.zIndex = '999999'; // Force high z-index
+            modal.style.visibility = 'visible'; // Ensure visibility
+            console.log("Modal display set to flex", modal);
+
+            const cleanup = () => {
+                modal.style.display = 'none';
+                cancelBtn.onclick = null;
+                okBtn.onclick = null;
+            };
+
+            cancelBtn.onclick = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            okBtn.onclick = () => {
+                cleanup();
+                resolve(true);
+            };
+        });
+    }
+
     function createQueueItem(track, onClick, draggable = false, index = -1) {
         const div = document.createElement('div');
         div.className = 'queue-item';
@@ -1649,9 +1700,28 @@ document.addEventListener('DOMContentLoaded', () => {
         signalingSocket = new WebSocket(SIGNALING_URL);
 
         signalingSocket.onopen = () => {
-            console.log("WS Connected");
-            signalingSocket.send(JSON.stringify({ type: action, room: room }));
-            if (isHost) hostStatus.innerText = "Esperando invitados...";
+            console.log("WS Connected. Sending:", action);
+            if (action === 'create') {
+                // HOST LOGIC: Use 'join' but with manualApproval: true to signal we are the owner
+                signalingSocket.send(JSON.stringify({
+                    type: 'join',
+                    room: room.toUpperCase(),
+                    appType: 'syncfy',
+                    manualApproval: true // THIS IS KEY for the Host
+                }));
+                // Don't say "Esperando invitados" yet, wait for room_created
+                hostStatus.innerText = "Creando sala en el servidor...";
+            } else {
+                // GUEST LOGIC: Use 'join'
+                signalingSocket.send(JSON.stringify({
+                    type: 'join',
+                    room: room.trim().toUpperCase(),
+                    appType: 'syncfy',
+                    // Guest does NOT send manualApproval
+                    alias: 'Guest',
+                    userColor: myColor
+                }));
+            }
         };
 
         signalingSocket.onmessage = async (msg) => {
@@ -1665,7 +1735,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-                    signalingSocket.send(JSON.stringify({ type: 'answer', room: jamRoomId, answer: answer }));
+                    signalingSocket.send(JSON.stringify({ type: 'answer', room: jamRoomId, answer: answer, appType: 'syncfy' }));
                 }
             } else if (data.type === 'answer') {
                 if (isHost) {
@@ -1677,8 +1747,146 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (data.type === 'joined') {
                 if (isHost) {
-                    hostStatus.innerText = "Invitado detectado. Iniciando P2P...";
+                    hostStatus.innerText = "Invitado unido. Iniciando canal seguro...";
                     createPeerConnection(); // Host initiates
+                } else {
+                    // Guest successful join confirmation
+                    guestStatus.innerText = "Conectado. Esperando datos...";
+                }
+            } else if (data.type === 'approval_request') {
+                console.log("Recibida solicitud:", data);
+                if (isHost) {
+                    const guestName = data.alias || "Un invitado";
+
+                    console.log("Abriendo modal para:", guestName);
+                    // Use custom modal
+                    showConfirmModal("Solicitud de Acceso", `${guestName} quiere unirse a la Jam.`)
+                        .then(accept => {
+                            console.log("Usuario eligió:", accept);
+                            signalingSocket.send(JSON.stringify({
+                                appType: 'syncfy',
+                                type: 'approval_response',
+                                peerId: data.peerId,
+                                approved: accept
+                            }));
+                            if (!accept) hostStatus.innerText = "Solicitud rechazada. Esperando...";
+                        })
+                        .catch(e => console.error("Error en modal:", e));
+                }
+            } else if (data.type === 'rejected') {
+                if (!isHost) {
+                    alert("El anfitrión rechazó tu solicitud.");
+                    signalingSocket.close();
+                    guestStatus.innerText = "Solicitud rechazada.";
+                }
+            } else if (data.type === 'peer_connected') {
+                if (isHost) {
+                    console.log("¡Invitado dentro! Enviando estado inicial...");
+                    hostStatus.innerText = "Sincronizando con invitado...";
+                    // Send initial state via WebSocket to unblock Guest UI immediately
+                    // (P2P will take over later for real-time control)
+                    signalingSocket.send(JSON.stringify({
+                        appType: 'syncfy',
+                        type: 'signal',
+                        // target: data.peerId, // Server might broadcast if room based or we need specific target. 
+                        // Assuming room broadcast for simplicity or server handles routing.
+                        room: jamRoomId,
+                        data: {
+                            action: 'INITIAL_SYNC',
+                            playlist: state.playlist,
+                            queue: state.queue,
+                            currentTrack: state.currentTrack,
+                            isPlaying: state.isPlaying,
+                            currentTime: audioPlayer.currentTime
+                        }
+                    }));
+                }
+            } else if (data.type === 'signal') {
+                // Handle Signals (e.g. Initial Sync via Socket)
+                const action = data.data.action;
+
+                if (action === 'INITIAL_SYNC') {
+                    if (!isHost) {
+                        console.log("Datos iniciales recibidos via WS.");
+                        state.playlist = data.data.playlist;
+                        state.queue = data.data.queue;
+                        state.currentTrack = data.data.currentTrack;
+
+                        // Update UI immediately
+                        guestStatus.innerText = "¡En la Foliada!";
+                        showNotification("Sincronizado con la sala");
+                        // Trigger UI refresh
+                        if (typeof renderQueueUI === 'function') renderQueueUI();
+                    }
+                } else if (action === 'ADD_TO_QUEUE') {
+                    if (isHost) {
+                        // 1. Add to master queue with Metadata
+                        const trackToAdd = data.data.track;
+                        trackToAdd.color = data.data.color; // Attach User Color for border
+                        trackToAdd.addedBy = data.data.user || 'Invitado';
+
+                        state.queue.push(trackToAdd);
+
+                        // 2. Update UI
+                        renderQueueUI();
+                        showNotification(`Canción añadida por ${trackToAdd.addedBy}`);
+
+                        // 3. Broadcast new state
+                        broadcastStateUpdate();
+                    }
+                } else if (action === 'CONTROL') {
+                    if (isHost) {
+                        const cmd = data.data.command;
+                        console.log("Comando recibido del invitado:", cmd);
+                        if (cmd === 'PLAY') playAudio(); // This already broadcasts state inside playAudio if we modify it
+                        else if (cmd === 'PAUSE') pauseAudio();
+                        else if (cmd === 'NEXT') playNext();
+                        else if (cmd === 'PREV') playPrev();
+
+                        // Broadcast update to confirm state (wait slightly or let the function do it)
+                        setTimeout(broadcastStateUpdate, 500);
+                    }
+                } else if (action === 'STATE_UPDATE') {
+                    if (!isHost) {
+                        // Mirror Host State
+                        console.log("Actualizando estado espejo...");
+
+                        // Update Queue
+                        if (data.data.queue) state.queue = data.data.queue;
+                        if (data.data.currentTrack) state.currentTrack = data.data.currentTrack;
+
+                        // Render UI
+                        if (state.currentTrack) {
+                            trackNameEl.innerText = state.currentTrack.title;
+                            artistNameEl.innerText = state.currentTrack.artist;
+                            currentArtEl.innerHTML = `<img src="${state.currentTrack.img}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                        }
+
+                        // Progress
+                        if (data.data.currentTime) {
+                            document.querySelector('.time.current').innerText = formatTime(data.data.currentTime);
+                            const percent = (data.data.currentTime / (data.data.duration || 180)) * 100; // Mock duration if missing
+                            progressFill.style.width = `${percent}%`;
+                        }
+
+                        // Play/Pause Icon
+                        playIcon.className = data.data.isPlaying ? 'ph-fill ph-pause' : 'ph-fill ph-play';
+
+                        // Re-render things
+                        if (typeof renderQueueUI === 'function') renderQueueUI();
+
+                        // Ensure we are silent
+                        audioPlayer.pause();
+                    }
+                }
+            } else if (data.type === 'room_created') {
+                if (!isHost) {
+                    // Guest error
+                    guestStatus.innerText = "Error: La sala no existe.";
+                    signalingSocket.close();
+                } else {
+                    // Host success
+                    hostStatus.innerText = "Sala creada. Esperando invitados...";
                 }
             } else if (data.type === 'error') {
                 alert("Error: " + data.message);
@@ -1693,7 +1901,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        signalingSocket.send(JSON.stringify({ type: 'offer', room: jamRoomId, offer: offer }));
+        signalingSocket.send(JSON.stringify({ type: 'offer', room: jamRoomId, offer: offer, appType: 'syncfy' }));
     }
 
     async function setupPeerConnection() {
@@ -1702,7 +1910,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                signalingSocket.send(JSON.stringify({ type: 'candidate', room: jamRoomId, candidate: event.candidate }));
+                signalingSocket.send(JSON.stringify({ type: 'candidate', room: jamRoomId, candidate: event.candidate, appType: 'syncfy' }));
             }
         };
 
@@ -1823,6 +2031,53 @@ document.addEventListener('DOMContentLoaded', () => {
         jamTabs[1].click();
         const input = document.getElementById('joinRoomInput');
         if (input) input.value = roomSnap;
+    }
+
+    // --- Jam Helpers ---
+    function agregarAFoliada(track) {
+        if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+            signalingSocket.send(JSON.stringify({
+                appType: 'syncfy',
+                type: 'signal',
+                room: jamRoomId, // Ensure we send room ID
+                data: {
+                    action: 'ADD_TO_QUEUE',
+                    track: track,
+                    user: 'Invitado', // Need to capture alias later if possible
+                    color: myColor
+                }
+            }));
+            showNotification("Petición enviada al Anfitrión");
+        }
+    }
+
+    function enviarComandoReproduccion(cmd) {
+        if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+            signalingSocket.send(JSON.stringify({
+                appType: 'syncfy',
+                type: 'signal',
+                room: jamRoomId,
+                data: { action: 'CONTROL', command: cmd }
+            }));
+        }
+    }
+
+    function broadcastStateUpdate() {
+        if (isHost && signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+            signalingSocket.send(JSON.stringify({
+                appType: 'syncfy',
+                type: 'signal',
+                room: jamRoomId,
+                data: {
+                    action: 'STATE_UPDATE',
+                    currentTrack: state.currentTrack,
+                    queue: state.queue,
+                    isPlaying: state.isPlaying,
+                    currentTime: audioPlayer.currentTime,
+                    duration: audioPlayer.duration
+                }
+            }));
+        }
     }
 
 }); // END OF DOMContentLoaded
