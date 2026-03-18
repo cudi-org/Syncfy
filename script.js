@@ -585,6 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.renderPlaylist = renderPlaylist;
     function renderPlaylist(playlistId) {
         // Hide Home Sections
         heroSection.style.display = 'none';
@@ -924,6 +925,23 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             container.appendChild(li);
         });
+
+        const homeContainer = document.getElementById('homePlaylistsContainer');
+        if (homeContainer) {
+            if (state.playlists.length === 0) {
+                 homeContainer.innerHTML = '<p style="color: var(--text-subdued); padding: 16px; width: 100%;">Aún no tienes playlists creadas.</p>';
+            } else {
+                 homeContainer.innerHTML = state.playlists.map(pl => `
+                    <div class="music-card" onclick="document.querySelectorAll('.playlist-list li').forEach(l => { l.classList.remove('active-playlist'); if(l.dataset.playlistId==${pl.id}) l.classList.add('active-playlist'); }); window.renderPlaylist('${pl.id}')">
+                        <div class="card-img-wrapper" style="background: linear-gradient(135deg, ${pl.isTravelMode ? '#1DB954, #0b5e28' : '#333333, #1A1A1A'}); display:flex; align-items:center; justify-content:center;">
+                            <i class="${pl.isTravelMode ? 'ph-bold ph-airplane-tilt' : 'ph-bold ph-music-notes-simple'}" style="font-size: 48px; color: #ffffff;"></i>
+                        </div>
+                        <div class="card-title">${pl.name}</div>
+                        <div class="card-desc">${pl.tracks ? pl.tracks.length : 0} canciones</div>
+                    </div>
+                 `).join('');
+            }
+        }
     }
 
     // Add to Playlist Modal
