@@ -473,7 +473,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const allTracks = [...state.localTracks, ...state.cloudTracks];
+            const playlistTracks = state.playlists.reduce((acc, pl) => acc.concat(pl.tracks || []), []);
+            const allTracksMap = new Map();
+            [...state.localTracks, ...state.cloudTracks, ...playlistTracks].forEach(t => {
+                if (t && t.id) allTracksMap.set(t.id, t);
+            });
+            const allTracks = Array.from(allTracksMap.values());
+
             const results = allTracks.filter(track =>
                 (track.title && track.title.toLowerCase().includes(query)) ||
                 (track.artist && track.artist.toLowerCase().includes(query))
