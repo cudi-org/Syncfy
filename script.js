@@ -953,16 +953,19 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         if (!ctxTrack) return;
 
+        const trackToAdd = ctxTrack; // Guardamos la pista localmente
+        closeContextMenu(); // Cerramos el menú contextual para evitar clicks fantasmas
+
         addToPlaylistList.innerHTML = '';
         state.playlists.forEach(pl => {
             const li = document.createElement('li');
             li.innerHTML = `<i class="ph-bold ph-music-notes-simple"></i> ${pl.name}`;
             li.onclick = async () => {
                 // If it's a travel mode playlist and track is from cloud, download immediately
-                if (pl.isTravelMode && ctxTrack.isCloud) {
+                if (pl.isTravelMode && trackToAdd.isCloud) {
                     try {
                         const cache = await caches.open('syncfy-travel');
-                        const url = PROXY_URL + ctxTrack.id;
+                        const url = PROXY_URL + trackToAdd.id;
                         const match = await cache.match(url);
                         if (!match) {
                             const response = await fetch(url);
@@ -970,13 +973,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch (e) { console.error("Error downloading", e); }
                 }
-                if (!pl.tracks.find(t => t.id === ctxTrack.id)) {
-                    pl.tracks.push(ctxTrack);
+                if (!pl.tracks.find(t => t.id === trackToAdd.id)) {
+                    pl.tracks.push(trackToAdd);
                 }
                 localStorage.setItem('syncfy_playlists', JSON.stringify(state.playlists));
                 renderSidebarPlaylists(); // Actualiza el número de canciones mostrado en la vista
                 addToPlaylistModal.style.display = 'none';
-                console.log(`Added ${ctxTrack.title} to ${pl.name}`);
+                console.log(`Added ${trackToAdd.title} to ${pl.name}`);
                 if(typeof showNotification === 'function'){
                     showNotification(`Añadida a ${pl.name}`);
                 } else {
