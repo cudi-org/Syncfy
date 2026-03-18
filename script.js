@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         queue: [], // User added manual queue
         localTracks: [],
         cloudTracks: [],
-        playlists: [], // Array of {id, name, tracks: []}
+        playlists: JSON.parse(localStorage.getItem('syncfy_playlists')) || [], // Array of {id, name, tracks: [], isTravelMode: bool}
         searchResults: [],
         currentIndex: 0,
         volume: 0.7
@@ -526,6 +526,65 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTrackList(allTracks, listContainer, 'library');
     }
 
+    async function downloadAllCloudTracks(playlist) {
+        if (state.cloudTracks.length === 0) {
+            alert("No hay canciones en tu nube. Conéctate a la nube primero.");
+            return;
+        }
+        try {
+            const cache = await caches.open('syncfy-travel');
+            let downloaded = 0;
+            const statusEl = document.getElementById('travelModeStatus');
+            for (const track of state.cloudTracks) {
+                if (!playlist.tracks.find(t => t.id === track.id)) {
+                    playlist.tracks.push(track);
+                }
+                const url = PROXY_URL + track.id;
+                const match = await cache.match(url);
+                if (!match) {
+                    if (statusEl) statusEl.innerText = `Descargando: ${downloaded + 1} de ${state.cloudTracks.length}...`;
+                    const response = await fetch(url);
+                    await cache.put(url, response);
+                }
+                downloaded++;
+            }
+            localStorage.setItem('syncfy_playlists', JSON.stringify(state.playlists));
+            renderPlaylist(playlist.id); // Refresh view
+            if (statusEl) statusEl.innerText = "¡Descarga completa!";
+        } catch (e) {
+            console.error(e);
+            alert("Hubo un error al descargar.");
+        }
+    }
+
+    async function finishTravelMode(playlistId) {
+        const playlist = state.playlists.find(p => p.id == playlistId);
+        if (!playlist) return;
+        try {
+            const cache = await caches.open('syncfy-travel');
+            for (const track of playlist.tracks) {
+                if (track.isCloud) {
+                    await cache.delete(PROXY_URL + track.id);
+                }
+            }
+        } catch (e) { console.error(e); }
+        state.playlists = state.playlists.filter(p => p.id != playlistId);
+        localStorage.setItem('syncfy_playlists', JSON.stringify(state.playlists));
+        renderSidebarPlaylists();
+        renderHome();
+    }
+
+    window.downloadAllCloudTracksClick = function (id) {
+        const playlist = state.playlists.find(p => p.id == id);
+        if (playlist) downloadAllCloudTracks(playlist);
+    };
+
+    window.finishTravelModeClick = function (id) {
+        if (confirm("¿Estás seguro de terminar el viaje? Esto borrará todas las canciones descargadas en esta lista.")) {
+            finishTravelMode(id);
+        }
+    };
+
     function renderPlaylist(playlistId) {
         // Hide Home Sections
         heroSection.style.display = 'none';
@@ -542,17 +601,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const playlist = state.playlists.find(p => p.id == playlistId);
         if (!playlist) return;
 
+        let travelActionsHTML = "";
+        if (playlist.isTravelMode) {
+            travelActionsHTML = `
+                <div style="padding: 16px; background: rgba(29, 185, 84, 0.1); border-radius: 12px; margin: 16px; border: 1px solid rgba(29, 185, 84, 0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                        <div>
+                            <h3 style="color:#1DB954; display:flex; align-items:center; gap:8px; margin:0;"><i class="ph-bold ph-airplane-tilt"></i> Modo Viaje Activo</h3>
+                            <p style="color:var(--text-subdued); font-size:14px; margin-top:4px; margin-bottom:0;" id="travelModeStatus">Guarda canciones y escúchalas sin conexión.</p>
+                        </div>
+                        <div style="display:flex; gap:16px;">
+                            <button onclick="downloadAllCloudTracksClick('${playlist.id}')" class="pin-submit-btn" style="width:auto; padding:8px 16px; font-size:14px; background:#fff; color:#000;">
+                                <i class="ph-bold ph-cloud-arrow-down"></i> Descargar Nube
+                            </button>
+                            <button onclick="finishTravelModeClick('${playlist.id}')" class="close-modal-btn" style="position:static; padding:8px 16px; border-radius:24px; font-size:14px; color:#fff; background:rgba(255,0,0,0.2);">
+                                Terminar Viaje
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         if (playlist.tracks.length === 0) {
-            listContainer.innerHTML = `
+            listContainer.innerHTML = travelActionsHTML + `
                 <div style="text-align: center; padding: 40px; color: var(--text-subdued);">
                     <h2 style="color: var(--text-base); margin-bottom: 10px;">Playlist vacía</h2>
-                    <p>Añade canciones desde el menú de opciones (...)</p>
+                    <p>Añade canciones desde el menú de opciones (...)${playlist.isTravelMode ? ' o descarga toda tu nube con el botón de arriba.' : ''}</p>
                 </div>
             `;
             return;
         }
 
         renderTrackList(playlist.tracks, listContainer, 'playlist', playlistId);
+
+        if (playlist.isTravelMode) {
+            const temp = document.createElement('div');
+            temp.innerHTML = travelActionsHTML;
+            listContainer.insertBefore(temp.firstElementChild, listContainer.firstChild);
+        }
     }
 
     function renderTrackList(tracks, container, source, playlistId = null) {
@@ -797,12 +884,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     createPlaylistConfirmBtn.addEventListener('click', () => {
         const name = newPlaylistName.value.trim();
+        const travelMode = document.getElementById('travelModeCheckbox').checked;
         if (name) {
-            const newPl = { id: Date.now(), name: name, tracks: [] };
+            const newPl = { id: Date.now(), name: name, tracks: [], isTravelMode: travelMode };
             state.playlists.push(newPl);
+            localStorage.setItem('syncfy_playlists', JSON.stringify(state.playlists));
             renderSidebarPlaylists();
             playlistModal.style.display = 'none';
             newPlaylistName.value = "";
+            document.getElementById('travelModeCheckbox').checked = false;
         }
     });
 
@@ -821,8 +911,17 @@ document.addEventListener('DOMContentLoaded', () => {
         state.playlists.forEach(pl => {
             const li = document.createElement('li');
             li.className = 'dynamic-pl';
-            li.innerText = pl.name;
+            if (pl.isTravelMode) {
+                li.innerHTML = `<i class="ph-bold ph-airplane-tilt" style="margin-right:8px; color:#1DB954;"></i>${pl.name}`;
+            } else {
+                li.innerText = pl.name;
+            }
             li.dataset.playlistId = pl.id;
+            li.onclick = () => {
+                document.querySelectorAll('.playlist-list li').forEach(l => l.classList.remove('active-playlist'));
+                li.classList.add('active-playlist');
+                renderPlaylist(pl.id);
+            };
             container.appendChild(li);
         });
     }
@@ -840,8 +939,23 @@ document.addEventListener('DOMContentLoaded', () => {
         state.playlists.forEach(pl => {
             const li = document.createElement('li');
             li.innerHTML = `<i class="ph-bold ph-music-notes-simple"></i> ${pl.name}`;
-            li.onclick = () => {
-                pl.tracks.push(ctxTrack);
+            li.onclick = async () => {
+                // If it's a travel mode playlist and track is from cloud, download immediately
+                if (pl.isTravelMode && ctxTrack.isCloud) {
+                    try {
+                        const cache = await caches.open('syncfy-travel');
+                        const url = PROXY_URL + ctxTrack.id;
+                        const match = await cache.match(url);
+                        if (!match) {
+                            const response = await fetch(url);
+                            await cache.put(url, response);
+                        }
+                    } catch (e) { console.error("Error downloading", e); }
+                }
+                if (!pl.tracks.find(t => t.id === ctxTrack.id)) {
+                    pl.tracks.push(ctxTrack);
+                }
+                localStorage.setItem('syncfy_playlists', JSON.stringify(state.playlists));
                 addToPlaylistModal.style.display = 'none';
                 console.log(`Added ${ctxTrack.title} to ${pl.name}`);
             };
@@ -1192,6 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHero();
     renderCards(topMixes, madeForYou);
     renderCards(recentlyPlayed, recentlyPlayedContainer);
+    renderSidebarPlaylists();
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {

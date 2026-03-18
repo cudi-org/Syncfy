@@ -297,6 +297,12 @@
         <div class="modal-content">
             <h2>Crear Playlist</h2>
             <input type="text" id="newPlaylistName" class="pin-input" placeholder="Nombre de la playlist">
+            <div style="margin-top: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="travelModeCheckbox"
+                    style="accent-color: var(--accent-color); width: 18px; height: 18px; cursor: pointer;">
+                <label for="travelModeCheckbox" style="color: var(--text-base); font-size: 15px; cursor: pointer;">Modo
+                    Viaje (Descargas offline)</label>
+            </div>
             <button id="createPlaylistConfirmBtn" class="pin-submit-btn">Crear</button>
             <button id="closePlaylistModalBtn" class="close-modal-btn"><i class="ph ph-x"></i></button>
         </div>
