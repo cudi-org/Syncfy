@@ -974,8 +974,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     pl.tracks.push(ctxTrack);
                 }
                 localStorage.setItem('syncfy_playlists', JSON.stringify(state.playlists));
+                renderSidebarPlaylists(); // Actualiza el número de canciones mostrado en la vista
                 addToPlaylistModal.style.display = 'none';
                 console.log(`Added ${ctxTrack.title} to ${pl.name}`);
+                if(typeof showNotification === 'function'){
+                    showNotification(`Añadida a ${pl.name}`);
+                } else {
+                    // Si no existe showNotification, un alert o un toast simple
+                    const toast = document.createElement('div');
+                    toast.innerText = `Canción añadida a ${pl.name}`;
+                    toast.style.cssText = "position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--accent-color); color:#000; padding:12px 24px; border-radius:24px; z-index:9999; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.3);";
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                }
             };
             addToPlaylistList.appendChild(li);
         });
