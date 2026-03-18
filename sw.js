@@ -1,4 +1,4 @@
-const CACHE_NAME = 'syncfy-v2';
+const CACHE_NAME = 'syncfy-v3';
 const ASSETS = [
     './',
     './index.html',
@@ -28,7 +28,25 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-    // Si la petición es para un archivo del PWA, intentamos Network First para siempre tener la última versión
+    const url = new URL(e.request.url);
+
+    // Si la petición es para una canción de la nube, priorizamos la caché (Modo Viaje)
+    if (url.hostname.includes('syncfy.syncfy-api.workers.dev')) {
+        e.respondWith(
+            caches.match(e.request, { ignoreVary: true }).then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                return fetch(e.request);
+            }).catch(() => {
+                // Si falla la red y no está en caché
+                return new Response("Network error", { status: 404 });
+            })
+        );
+        return;
+    }
+
+    // Para el resto (archivos del PWA), intentamos Network First para siempre tener la última versión
     e.respondWith(
         fetch(e.request).then((response) => {
             if (response && response.status === 200 && response.type === 'basic') {
@@ -40,7 +58,7 @@ self.addEventListener('fetch', (e) => {
             return response;
         }).catch(() => {
             // Si no hay red, servimos desde la caché
-            return caches.match(e.request);
+            return caches.match(e.request, { ignoreVary: true });
         })
     );
 });
